@@ -19,8 +19,7 @@
 
 - Street Fighter  
 - Super Smash Bros  
-- Brawlhalla  
-- King of Fighters  
+- Brawlhalla    
 
 O jogador deve derrotar seus inimigos reduzindo seu HP a zero, usando personagens com estilos de luta variados.
 
@@ -31,13 +30,7 @@ O jogador deve derrotar seus inimigos reduzindo seu HP a zero, usando personagen
 ### ✅ **Modos de Jogo**
 - **Single Player** — Jogador vs IA  
 - **Multiplayer Local** — 2 jogadores  
-
-### ✅ **Classes de Personagens**
-- Tanque  
-- Ofensivo  
-- Longa distância  
-- Suporte (opcional)  
-
+ 
 Cada personagem possui habilidades únicas e um estilo próprio de movimentação e ataque.
 
 ---
