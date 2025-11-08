@@ -1,0 +1,10 @@
+build/
+output/
+
+raylib/
+
+*.exe
+*.obj
+*.o
+
+.vscode/
