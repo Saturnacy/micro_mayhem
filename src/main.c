@@ -9,6 +9,27 @@ typedef enum {
     STATE_TITLE_MM
 } GameState;
 
+typedef struct {
+    Texture2D texture;
+    Vector2 positionRatio;
+    float scale;
+} TitleBG;
+
+void DrawRadialBackground(int screenWidth, int screenHeight) {
+    Color darkBlue = (Color){8, 14, 25, 255};
+    ClearBackground(darkBlue);
+
+    Vector2 center = { screenWidth / 2.0f, screenHeight / 2.0f };
+    float maxRadius = screenWidth * 0.6f;
+
+    for (int r = (int)maxRadius; r > 0; r--) {
+        float t = (float)r / maxRadius;
+        unsigned char brightness = (unsigned char)(50 + 70 * t);
+        Color color = (Color){brightness / 2, brightness / 2 + 20, 120 - (unsigned char)(70 * t), 255};
+        DrawCircleV(center, r, color);
+    }
+}
+
 int main(void) {
     int screenWidth = 1200;
     int screenHeight = 720;
@@ -23,9 +44,61 @@ int main(void) {
 
     Texture2D cesarLogo = LoadTexture("assets/cesar_logo.png");
     Texture2D mmLogo = LoadTexture("assets/title.png");
+    Texture2D titlebg1 = LoadTexture("assets/title_bg1.png");
+    Texture2D titlebg2 = LoadTexture("assets/title_bg2.png");
+    Texture2D titlebg3 = LoadTexture("assets/title_bg3.png");
+    Texture2D titlebg4 = LoadTexture("assets/title_bg4.png");
+    Texture2D titlebg5 = LoadTexture("assets/title_bg5.png");
+    Texture2D titlebg6 = LoadTexture("assets/title_bg6.png");
+    Texture2D titlebg7 = LoadTexture("assets/title_bg7.png");
+    Texture2D titlebg8 = LoadTexture("assets/title_bg8.png");
+    Texture2D titlebg9 = LoadTexture("assets/title_bg9.png");
+    Texture2D titlebg10 = LoadTexture("assets/title_bg10.png");
+    Texture2D titlebg11 = LoadTexture("assets/title_bg11.png");
+    Texture2D titlebg12 = LoadTexture("assets/title_bg12.png");
+    Texture2D titlebg13 = LoadTexture("assets/title_bg13.png");
+    Texture2D titlebg14 = LoadTexture("assets/title_bg14.png");
+    Texture2D titlebg15 = LoadTexture("assets/title_bg15.png");
+    Texture2D titlebg16 = LoadTexture("assets/title_bg16.png");
+    Texture2D titlebg17 = LoadTexture("assets/title_bg17.png");
+    Texture2D titlebg18 = LoadTexture("assets/title_bg18.png");
+
+    TitleBG titleBGs[20] = {
+        { titlebg1, {0.34f, 0.195f}, 2.6f },
+        { titlebg2, {0.35f, 0.79f}, 3.0f },
+        { titlebg3, {0.8f, 0.36f}, 2.7f },
+        { titlebg4, {0.56f, 0.17f}, 2.7f },
+        { titlebg5, {0.73f, 0.18f}, 2.5f },
+        { titlebg6, {0.39f, 0.79f}, 3.0f },
+        { titlebg7, {0.88f, 0.83f}, 2.5f },
+        { titlebg8, {0.88f, 0.26f}, 2.9f },
+        { titlebg9, {0.125f, 0.72f}, 2.7f },
+        { titlebg10, {0.16f, 0.17f}, 2.7f },
+        { titlebg11, {0.12f, 0.42f}, 2.8f },
+        { titlebg12, {0.28f, 0.77f}, 2.7f },
+        { titlebg13, {0.67f, 0.81f}, 2.8f },
+        { titlebg14, {0.895f, 0.47f}, 2.8f },
+        { titlebg15, {0.21f, 0.82f}, 2.5f },
+        { titlebg16, {0.86f, 0.47f}, 2.8f },
+        { titlebg16, {0.825f, 0.47f}, 2.8f },
+        { titlebg17, {0.615f, 0.82f}, 2.2f },
+        { titlebg18, {0.22f, 0.35f}, 1.6f },
+        { titlebg18, {0.78f, 0.72f}, 1.5f },
+    };
+    
     RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
 
     Shader pixelShader = LoadShader(0, "assets/shaders/pixelizer.fs");
+
+    Shader gradientShader = LoadShader(0, "assets/shaders/radial_gradient.fs");
+    int resLoc = GetShaderLocation(gradientShader, "resolution");
+    int centerLoc = GetShaderLocation(gradientShader, "colorCenter");
+    int edgeLoc = GetShaderLocation(gradientShader, "colorEdge");
+
+    Vector2 resolution = { (float)screenWidth, (float)screenHeight };
+
+    float centerColor[3] = { 11/255.0f, 22/255.0f, 79/255.0f };
+    float edgeColor[3] = { 9/255.0f, 15/255.0f, 29/255.0f };
 
     int pixelSizeLoc = GetShaderLocation(pixelShader, "pixelSize");
     int renderSizeLoc = GetShaderLocation(pixelShader, "renderSize");
@@ -43,7 +116,7 @@ int main(void) {
     };
     
     float CESARlogoscale = 2.0f;
-    float MMlogoScale = 0.2f; 
+    float MMlogoScale = 2.0f; 
     bool running = true;
     int frameCounter = 0;
     float currentPixelSize = 20.0f;
@@ -115,7 +188,19 @@ int main(void) {
         }
 
         BeginTextureMode(target);
-            ClearBackground(BLACK);
+            if (currentState == STATE_REVEAL_MM || currentState == STATE_TITLE_MM) {
+                BeginShaderMode(gradientShader);
+
+                SetShaderValue(gradientShader, resLoc, &resolution, SHADER_UNIFORM_VEC2);
+                SetShaderValue(gradientShader, centerLoc, centerColor, SHADER_UNIFORM_VEC3);
+                SetShaderValue(gradientShader, edgeLoc, edgeColor, SHADER_UNIFORM_VEC3);
+
+                DrawRectangle(0, 0, screenWidth, screenHeight, WHITE);
+
+                EndShaderMode();
+            } else {
+                ClearBackground(BLACK);
+            }
 
             switch (currentState) {
                 case STATE_SPLASH_FADE_IN:
@@ -138,21 +223,114 @@ int main(void) {
                 case STATE_REVEAL_MM:
                 case STATE_TITLE_MM:
                 {
+                    float thickness = 4.0f;
+                    Color lineColor = (Color){ 52, 62, 102, 255 };
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.088f, screenHeight * 0.09f},
+                        (Vector2){screenWidth * 0.088f, screenHeight * 0.6f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.088f, screenHeight * 0.6f},
+                        (Vector2){screenWidth * 0.159f, screenHeight * 0.6f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.29f, screenHeight * 0.91f},
+                        (Vector2){screenWidth * 0.72f, screenHeight * 0.91f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.265f, screenHeight * 0.09f},
+                        (Vector2){screenWidth * 0.84f, screenHeight * 0.09f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.84f, screenHeight * 0.09f},
+                        (Vector2){screenWidth * 0.84f, screenHeight * 0.2f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.912f, screenHeight * 0.55f},
+                        (Vector2){screenWidth * 0.912f, screenHeight * 0.91f},
+                        thickness, lineColor);
+
+                   DrawLineEx(
+                        (Vector2){screenWidth * 0.83f, screenHeight * 0.55f},
+                        (Vector2){screenWidth * 0.912f, screenHeight * 0.55f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.24f, screenHeight * 0.55f},
+                        (Vector2){screenWidth * 0.24f, screenHeight * 0.76f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.3f, screenHeight * 0.26f},
+                        (Vector2){screenWidth * 0.38f, screenHeight * 0.26f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.46f, screenHeight * 0.15f},
+                        (Vector2){screenWidth * 0.46f, screenHeight * 0.21f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.37f, screenHeight * 0.15f},
+                        (Vector2){screenWidth * 0.46f, screenHeight * 0.15f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.53f, screenHeight * 0.79f},
+                        (Vector2){screenWidth * 0.53f, screenHeight * 0.83f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.53f, screenHeight * 0.83f},
+                        (Vector2){screenWidth * 0.59f, screenHeight * 0.83f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.73f, screenHeight * 0.25f},
+                        (Vector2){screenWidth * 0.73f, screenHeight * 0.41f},
+                        thickness, lineColor);
+
+                    DrawLineEx(
+                        (Vector2){screenWidth * 0.64f, screenHeight * 0.25f},
+                        (Vector2){screenWidth * 0.73f, screenHeight * 0.25f},
+                        thickness, lineColor);
+
+                    for (int i = 0; i < 20; i++) {
+                        Texture2D tex = titleBGs[i].texture;
+                        float scale = titleBGs[i].scale;
+
+                        float texWidth = tex.width * scale;
+                        float texHeight = tex.height * scale;
+
+                        Vector2 position = {
+                            screenWidth * titleBGs[i].positionRatio.x - texWidth / 2.0f,
+                            screenHeight * titleBGs[i].positionRatio.y - texHeight / 2.0f
+                        };
+
+                        DrawTextureEx(tex, position, 0.0f, scale, WHITE);
+                    }
+
                     Rectangle sourceRec = { 0.0f, 0.0f, (float)mmLogo.width, (float)mmLogo.height };
                     float scaledWidth = (float)mmLogo.width * MMlogoScale;
                     float scaledHeight = (float)mmLogo.height * MMlogoScale;
                     Rectangle destRec = {
                         (screenWidth - scaledWidth) / 2.0f,
-                        (screenHeight / 2.0f) - scaledHeight,
+                        (screenHeight - scaledHeight) / 2.0f,
                         scaledWidth,
                         scaledHeight
                     };
                     Vector2 origin = { 0.0f, 0.0f };
                     DrawTexturePro(mmLogo, sourceRec, destRec, origin, 0.0f, WHITE);
+
                 } break;
             }
         EndTextureMode();
-
 
         BeginDrawing();
             ClearBackground(BLACK);
@@ -181,8 +359,26 @@ int main(void) {
     
     UnloadRenderTexture(target);
     UnloadShader(pixelShader);
+    UnloadShader(gradientShader);
     UnloadTexture(mmLogo);
     UnloadTexture(cesarLogo);
+    UnloadTexture(titlebg1);
+    UnloadTexture(titlebg2);
+    UnloadTexture(titlebg3);
+    UnloadTexture(titlebg4);
+    UnloadTexture(titlebg5);
+    UnloadTexture(titlebg6);
+    UnloadTexture(titlebg7);
+    UnloadTexture(titlebg8);
+    UnloadTexture(titlebg9);
+    UnloadTexture(titlebg10);
+    UnloadTexture(titlebg11);
+    UnloadTexture(titlebg12);
+    UnloadTexture(titlebg13);
+    UnloadTexture(titlebg14);
+    UnloadTexture(titlebg15);
+    UnloadTexture(titlebg16);
+    UnloadTexture(titlebg17);
     UnloadImage(icon);
 
     CloseWindow();
