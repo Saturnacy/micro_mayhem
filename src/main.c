@@ -1,12 +1,15 @@
 #include "raylib.h"
 #include <math.h>
 
+#define MENU_OPTIONS 5
+
 typedef enum {
     STATE_SPLASH_FADE_IN,
     STATE_SPLASH_CESAR,
     STATE_FADE_OUT,
     STATE_REVEAL_MM,
-    STATE_TITLE_MM
+    STATE_TITLE_MM,
+    STATE_MENU
 } GameState;
 
 typedef struct {
@@ -15,20 +18,8 @@ typedef struct {
     float scale;
 } TitleBG;
 
-void DrawRadialBackground(int screenWidth, int screenHeight) {
-    Color darkBlue = (Color){8, 14, 25, 255};
-    ClearBackground(darkBlue);
-
-    Vector2 center = { screenWidth / 2.0f, screenHeight / 2.0f };
-    float maxRadius = screenWidth * 0.6f;
-
-    for (int r = (int)maxRadius; r > 0; r--) {
-        float t = (float)r / maxRadius;
-        unsigned char brightness = (unsigned char)(50 + 70 * t);
-        Color color = (Color){brightness / 2, brightness / 2 + 20, 120 - (unsigned char)(70 * t), 255};
-        DrawCircleV(center, r, color);
-    }
-}
+void DrawRadialBackground(int screenWidth, int screenHeight);
+void DrawInitialBackground(int screenWidth, int screenHeight, TitleBG *titleBGs, Texture2D mmLogo, float MMlogoScale);
 
 int main(void) {
     int screenWidth = 1200;
@@ -122,6 +113,16 @@ int main(void) {
     float currentPixelSize = 20.0f;
     float fadeAlpha = 255.0f;
 
+    char* menuOptions[MENU_OPTIONS] = {
+        "Quick Play",
+        "Arcade",
+        "Extras",
+        "Settings",
+        "Quit Game"
+    };
+
+    int selectedOption = 0;
+
     while (running && !WindowShouldClose()) {
         
         if (IsKeyPressed(KEY_F11)) {
@@ -182,13 +183,50 @@ int main(void) {
 
             case STATE_TITLE_MM:
                 if (IsKeyPressed(KEY_ENTER)){
-                    running = false;
+                    currentState = STATE_MENU;
                 }
+                break;
+            
+            case STATE_MENU:
+                if (IsKeyPressed(KEY_DOWN)) {
+                    selectedOption++;
+                    if (selectedOption >= MENU_OPTIONS) selectedOption = 0;
+                }
+
+                if (IsKeyPressed(KEY_UP)) {
+                    selectedOption--;
+                    if (selectedOption < 0) selectedOption = MENU_OPTIONS - 1;
+                }
+
+                if (IsKeyPressed(KEY_ENTER)) {
+                    switch (selectedOption) {
+                        case 0:
+                            //por enquanto nada
+                            break;
+
+                        case 1:
+                            //por enquanto nada
+                            break;
+
+                        case 2:
+                            //por enquanto nada
+                            break;
+
+                        case 3:
+                            //por enquanto nada
+                            break;
+                        
+                        case 4:
+                            running = false;
+                            break;
+                    }
+                }
+
                 break;
         }
 
         BeginTextureMode(target);
-            if (currentState == STATE_REVEAL_MM || currentState == STATE_TITLE_MM) {
+            if (currentState == STATE_REVEAL_MM || currentState == STATE_TITLE_MM || currentState == STATE_MENU) {
                 BeginShaderMode(gradientShader);
 
                 SetShaderValue(gradientShader, resLoc, &resolution, SHADER_UNIFORM_VEC2);
@@ -222,100 +260,8 @@ int main(void) {
 
                 case STATE_REVEAL_MM:
                 case STATE_TITLE_MM:
-                {
-                    float thickness = 4.0f;
-                    Color lineColor = (Color){ 52, 62, 102, 255 };
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.088f, screenHeight * 0.09f},
-                        (Vector2){screenWidth * 0.088f, screenHeight * 0.6f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.088f, screenHeight * 0.6f},
-                        (Vector2){screenWidth * 0.159f, screenHeight * 0.6f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.29f, screenHeight * 0.91f},
-                        (Vector2){screenWidth * 0.72f, screenHeight * 0.91f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.265f, screenHeight * 0.09f},
-                        (Vector2){screenWidth * 0.84f, screenHeight * 0.09f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.84f, screenHeight * 0.09f},
-                        (Vector2){screenWidth * 0.84f, screenHeight * 0.2f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.912f, screenHeight * 0.55f},
-                        (Vector2){screenWidth * 0.912f, screenHeight * 0.91f},
-                        thickness, lineColor);
-
-                   DrawLineEx(
-                        (Vector2){screenWidth * 0.83f, screenHeight * 0.55f},
-                        (Vector2){screenWidth * 0.912f, screenHeight * 0.55f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.24f, screenHeight * 0.55f},
-                        (Vector2){screenWidth * 0.24f, screenHeight * 0.76f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.3f, screenHeight * 0.26f},
-                        (Vector2){screenWidth * 0.38f, screenHeight * 0.26f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.46f, screenHeight * 0.15f},
-                        (Vector2){screenWidth * 0.46f, screenHeight * 0.21f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.37f, screenHeight * 0.15f},
-                        (Vector2){screenWidth * 0.46f, screenHeight * 0.15f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.53f, screenHeight * 0.79f},
-                        (Vector2){screenWidth * 0.53f, screenHeight * 0.83f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.53f, screenHeight * 0.83f},
-                        (Vector2){screenWidth * 0.59f, screenHeight * 0.83f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.73f, screenHeight * 0.25f},
-                        (Vector2){screenWidth * 0.73f, screenHeight * 0.41f},
-                        thickness, lineColor);
-
-                    DrawLineEx(
-                        (Vector2){screenWidth * 0.64f, screenHeight * 0.25f},
-                        (Vector2){screenWidth * 0.73f, screenHeight * 0.25f},
-                        thickness, lineColor);
-
-                    for (int i = 0; i < 20; i++) {
-                        Texture2D tex = titleBGs[i].texture;
-                        float scale = titleBGs[i].scale;
-
-                        float texWidth = tex.width * scale;
-                        float texHeight = tex.height * scale;
-
-                        Vector2 position = {
-                            screenWidth * titleBGs[i].positionRatio.x - texWidth / 2.0f,
-                            screenHeight * titleBGs[i].positionRatio.y - texHeight / 2.0f
-                        };
-
-                        DrawTextureEx(tex, position, 0.0f, scale, WHITE);
-                    }
-
+                    DrawInitialBackground(screenWidth, screenHeight, titleBGs, mmLogo, MMlogoScale);
+                    
                     Rectangle sourceRec = { 0.0f, 0.0f, (float)mmLogo.width, (float)mmLogo.height };
                     float scaledWidth = (float)mmLogo.width * MMlogoScale;
                     float scaledHeight = (float)mmLogo.height * MMlogoScale;
@@ -325,10 +271,53 @@ int main(void) {
                         scaledWidth,
                         scaledHeight
                     };
+
                     Vector2 origin = { 0.0f, 0.0f };
                     DrawTexturePro(mmLogo, sourceRec, destRec, origin, 0.0f, WHITE);
+                    break;
 
-                } break;
+                case STATE_MENU:
+                {
+                    DrawInitialBackground(screenWidth, screenHeight, titleBGs, mmLogo, MMlogoScale);
+
+                    const char *menuTitle = "MAIN MENU";
+                    int titleSize = 60;
+                    int titleWidth = MeasureText(menuTitle, titleSize);
+                    DrawText(menuTitle,
+                        (screenWidth - titleWidth) / 2,
+                        screenHeight * 0.18f,
+                        titleSize,
+                        WHITE
+                    );
+
+                    int optionFontSize = 40;
+
+                    for (int i = 0; i < MENU_OPTIONS; i++) {
+                        int textWidth = MeasureText(menuOptions[i], optionFontSize);
+                        
+                        Color optionColor = (i == selectedOption)
+                            ? (Color){255, 255, 200, 255}
+                            : (Color){200, 200, 255, 255};
+
+                        DrawText(
+                            menuOptions[i],
+                            (screenWidth - textWidth) / 2,
+                            screenHeight * 0.35f + i * 60,
+                            optionFontSize,
+                            optionColor
+                        );
+
+                        if (i == selectedOption) {
+                            DrawTriangle(
+                                (Vector2){ (screenWidth - textWidth) / 2 - 30, screenHeight * 0.35f + i * 60 + 20 },
+                                (Vector2){ (screenWidth - textWidth) / 2 - 10, screenHeight * 0.35f + i * 60 + 10 },
+                                (Vector2){ (screenWidth - textWidth) / 2 - 10, screenHeight * 0.35f + i * 60 + 30 },
+                                optionColor
+                            );
+                        }
+                    }
+                }
+                break;
             }
         EndTextureMode();
 
@@ -384,4 +373,127 @@ int main(void) {
     CloseWindow();
 
     return 0;
+}
+
+void DrawRadialBackground(int screenWidth, int screenHeight) {
+    Color darkBlue = (Color){8, 14, 25, 255};
+    ClearBackground(darkBlue);
+
+    Vector2 center = { screenWidth / 2.0f, screenHeight / 2.0f };
+    float maxRadius = screenWidth * 0.6f;
+
+    for (int r = (int)maxRadius; r > 0; r--) {
+        float t = (float)r / maxRadius;
+        unsigned char brightness = (unsigned char)(50 + 70 * t);
+        Color color = (Color){brightness / 2, brightness / 2 + 20, 120 - (unsigned char)(70 * t), 255};
+        DrawCircleV(center, r, color);
+    }
+}
+
+void DrawInitialBackground(int screenWidth, int screenHeight, TitleBG *titleBGs, Texture2D mmLogo, float MMlogoScale) {
+    float thickness = 4.0f;
+    Color lineColor = (Color){ 52, 62, 102, 255 };
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.088f, screenHeight * 0.09f},
+        (Vector2){screenWidth * 0.088f, screenHeight * 0.6f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.088f, screenHeight * 0.6f},
+        (Vector2){screenWidth * 0.159f, screenHeight * 0.6f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.29f, screenHeight * 0.91f},
+        (Vector2){screenWidth * 0.72f, screenHeight * 0.91f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.265f, screenHeight * 0.09f},
+        (Vector2){screenWidth * 0.84f, screenHeight * 0.09f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.84f, screenHeight * 0.09f},
+        (Vector2){screenWidth * 0.84f, screenHeight * 0.2f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.912f, screenHeight * 0.55f},
+        (Vector2){screenWidth * 0.912f, screenHeight * 0.91f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.83f, screenHeight * 0.55f},
+        (Vector2){screenWidth * 0.912f, screenHeight * 0.55f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.24f, screenHeight * 0.55f},
+        (Vector2){screenWidth * 0.24f, screenHeight * 0.76f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.3f, screenHeight * 0.26f},
+        (Vector2){screenWidth * 0.38f, screenHeight * 0.26f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.46f, screenHeight * 0.15f},
+        (Vector2){screenWidth * 0.46f, screenHeight * 0.21f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.37f, screenHeight * 0.15f},
+        (Vector2){screenWidth * 0.46f, screenHeight * 0.15f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.53f, screenHeight * 0.79f},
+        (Vector2){screenWidth * 0.53f, screenHeight * 0.83f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.53f, screenHeight * 0.83f},
+        (Vector2){screenWidth * 0.59f, screenHeight * 0.83f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.73f, screenHeight * 0.25f},
+        (Vector2){screenWidth * 0.73f, screenHeight * 0.41f},
+        thickness, lineColor);
+
+    DrawLineEx(
+        (Vector2){screenWidth * 0.64f, screenHeight * 0.25f},
+        (Vector2){screenWidth * 0.73f, screenHeight * 0.25f},
+        thickness, lineColor);
+
+    for (int i = 0; i < 20; i++) {
+        Texture2D tex = titleBGs[i].texture;
+        float scale = titleBGs[i].scale;
+
+        float texWidth = tex.width * scale;
+        float texHeight = tex.height * scale;
+
+        Vector2 position = {
+            screenWidth * titleBGs[i].positionRatio.x - texWidth / 2.0f,
+            screenHeight * titleBGs[i].positionRatio.y - texHeight / 2.0f
+        };
+
+        DrawTextureEx(tex, position, 0.0f, scale, WHITE);
+    }
+
+    Rectangle sourceRec = { 0.0f, 0.0f, (float)mmLogo.width, (float)mmLogo.height };
+    float scaledWidth = (float)mmLogo.width * MMlogoScale;
+    float scaledHeight = (float)mmLogo.height * MMlogoScale;
+    Rectangle destRec = {
+        (screenWidth - scaledWidth) / 2.0f,
+        (screenHeight - scaledHeight) / 2.0f,
+        scaledWidth,
+        scaledHeight
+    };
+
+    Vector2 origin = { 0.0f, 0.0f };
+    DrawTexturePro(mmLogo, sourceRec, destRec, origin, 0.0f, (Color){ 52, 62, 102, 255 });
 }
