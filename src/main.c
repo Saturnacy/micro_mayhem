@@ -30,6 +30,7 @@ int main(void) {
     int screenHeight = 720;
 
     InitWindow(screenWidth, screenHeight, "Micro Mayhem");
+    InitAudioDevice();
     SetTargetFPS(60);
 
     GameState currentState = STATE_SPLASH_FADE_IN;
@@ -57,6 +58,12 @@ int main(void) {
     Texture2D titlebg16 = LoadTexture("assets/title_bg16.png");
     Texture2D titlebg17 = LoadTexture("assets/title_bg17.png");
     Texture2D titlebg18 = LoadTexture("assets/title_bg18.png");
+
+    Music menuMusic = LoadMusicStream("../assets/audio/menu_principal.ogg");
+    menuMusic.looping = true;
+    SetMasterVolume(1.0f);
+    bool isMenuMusicPlaying = false;
+
 
     TitleBG titleBGs[20] = {
         { titlebg1, {0.34f, 0.195f}, 2.6f },
@@ -140,6 +147,8 @@ int main(void) {
             ToggleFullscreen();
         }
 
+        if (isMenuMusicPlaying) UpdateMusicStream(menuMusic);
+
         switch (currentState) {
             case STATE_SPLASH_FADE_IN:
                 fadeAlpha -= 8.0f;
@@ -193,6 +202,10 @@ int main(void) {
                 break;
 
             case STATE_TITLE_MM:
+                if (!isMenuMusicPlaying) {
+                    PlayMusicStream(menuMusic);
+                    isMenuMusicPlaying = true;
+                }
                 if (IsKeyPressed(KEY_ENTER)){
                     currentState = STATE_MENU;
                 }
@@ -217,15 +230,12 @@ int main(void) {
                             break;
 
                         case 1:
-                            //por enquanto nada
                             break;
 
                         case 2:
-                            //por enquanto nada
                             break;
 
                         case 3:
-                            //por enquanto nada
                             break;
                         
                         case 4:
@@ -250,6 +260,10 @@ int main(void) {
                     switch (selectedOption) {
                         case 0:
                             GameScene_Init();
+                            if (isMenuMusicPlaying) {
+                                StopMusicStream(menuMusic);
+                                isMenuMusicPlaying = false;
+                            }
                             currentState = STATE_GAMEPLAY;
                             break;
                         case 1:
@@ -268,7 +282,7 @@ int main(void) {
         }
 
         BeginTextureMode(target);
-            if (currentState == STATE_REVEAL_MM || currentState == STATE_TITLE_MM || currentState == STATE_MENU) {
+            if (currentState == STATE_REVEAL_MM || currentState == STATE_TITLE_MM || currentState == STATE_MENU || currentState == STATE_QUICKPLAY_MENU) {
                 BeginShaderMode(gradientShader);
 
                 SetShaderValue(gradientShader, resLoc, &resolution, SHADER_UNIFORM_VEC2);
@@ -442,8 +456,12 @@ int main(void) {
     UnloadTexture(titlebg15);
     UnloadTexture(titlebg16);
     UnloadTexture(titlebg17);
+    UnloadTexture(titlebg18);
     UnloadImage(icon);
 
+    StopMusicStream(menuMusic);
+    UnloadMusicStream(menuMusic);
+    CloseAudioDevice();
     CloseWindow();
 
     return 0;
