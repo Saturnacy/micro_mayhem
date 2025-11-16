@@ -1,7 +1,9 @@
 #include "raylib.h"
 #include <math.h>
+#include "game_scene.h"
 
 #define MENU_OPTIONS 5
+#define QP_OPTIONS 3
 
 typedef enum {
     STATE_SPLASH_FADE_IN,
@@ -9,7 +11,9 @@ typedef enum {
     STATE_FADE_OUT,
     STATE_REVEAL_MM,
     STATE_TITLE_MM,
-    STATE_MENU
+    STATE_MENU,
+    STATE_QUICKPLAY_MENU,
+    STATE_GAMEPLAY
 } GameState;
 
 typedef struct {
@@ -121,7 +125,14 @@ int main(void) {
         "Quit Game"
     };
 
+    char *QP_options[3] = {
+        "Singleplayer",
+        "Multiplayer",
+        "Return"
+    };
+
     int selectedOption = 0;
+    int optionFontSize = 40;
 
     while (running && !WindowShouldClose()) {
         
@@ -201,7 +212,8 @@ int main(void) {
                 if (IsKeyPressed(KEY_ENTER)) {
                     switch (selectedOption) {
                         case 0:
-                            //por enquanto nada
+                            currentState = STATE_QUICKPLAY_MENU;
+                            selectedOption = 0;
                             break;
 
                         case 1:
@@ -221,7 +233,37 @@ int main(void) {
                             break;
                     }
                 }
+                break;
 
+            case STATE_QUICKPLAY_MENU:
+                if (IsKeyPressed(KEY_DOWN)) {
+                    selectedOption++;
+                    if (selectedOption >= QP_OPTIONS) selectedOption = 0;
+                }
+
+                if (IsKeyPressed(KEY_UP)) {
+                    selectedOption--;
+                    if (selectedOption < 0) selectedOption = QP_OPTIONS - 1;
+                }
+
+                if (IsKeyPressed(KEY_ENTER)) {
+                    switch (selectedOption) {
+                        case 0:
+                            GameScene_Init();
+                            currentState = STATE_GAMEPLAY;
+                            break;
+                        case 1:
+                            break;
+                        case 2:
+                            currentState = STATE_MENU;
+                            selectedOption = 0;
+                            break;
+                    }
+                }
+                break;
+
+            case STATE_GAMEPLAY:
+                GameScene_Update();
                 break;
         }
 
@@ -290,8 +332,6 @@ int main(void) {
                         WHITE
                     );
 
-                    int optionFontSize = 40;
-
                     for (int i = 0; i < MENU_OPTIONS; i++) {
                         int textWidth = MeasureText(menuOptions[i], optionFontSize);
                         
@@ -318,6 +358,39 @@ int main(void) {
                     }
                 }
                 break;
+
+                case STATE_QUICKPLAY_MENU:
+                    DrawInitialBackground(screenWidth, screenHeight, titleBGs, mmLogo, MMlogoScale);
+
+                    for (int i = 0; i < 3; i++) {
+                        int textWidth = MeasureText(QP_options[i], optionFontSize);
+                        
+                        Color optionColor = (i == selectedOption)
+                            ? (Color){255, 255, 200, 255}
+                            : (Color){200, 200, 255, 255};
+
+                        DrawText(
+                            QP_options[i],
+                            (screenWidth - textWidth) / 2,
+                            screenHeight * 0.35f + i * 60,
+                            optionFontSize,
+                            optionColor
+                        );
+
+                        if (i == selectedOption) {
+                            DrawTriangle(
+                                (Vector2){ (screenWidth - textWidth) / 2 - 30, screenHeight * 0.35f + i * 60 + 20 },
+                                (Vector2){ (screenWidth - textWidth) / 2 - 10, screenHeight * 0.35f + i * 60 + 10 },
+                                (Vector2){ (screenWidth - textWidth) / 2 - 10, screenHeight * 0.35f + i * 60 + 30 },
+                                optionColor
+                            );
+                        }
+                    }
+                    break;
+                
+                case STATE_GAMEPLAY:
+                    GameScene_Draw();
+                    break;
             }
         EndTextureMode();
 
@@ -346,6 +419,7 @@ int main(void) {
         EndDrawing();
     }
     
+    GameScene_Unload();
     UnloadRenderTexture(target);
     UnloadShader(pixelShader);
     UnloadShader(gradientShader);
