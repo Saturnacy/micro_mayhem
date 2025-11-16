@@ -4,7 +4,10 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 
-add_executable(MicroMayhem src/main.c)
+add_executable(MicroMayhem
+    src/main.c
+    src/game_scene.c
+)
 
 target_include_directories(MicroMayhem PUBLIC ${PROJECT_SOURCE_DIR}/raylib/include)
 target_link_directories(MicroMayhem PUBLIC ${PROJECT_SOURCE_DIR}/raylib/lib)
