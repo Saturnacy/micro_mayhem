@@ -1,9 +1,12 @@
 #include "raylib.h"
 #include <math.h>
+#include <stdio.h>
 #include "game_scene.h"
 
 #define MENU_OPTIONS 5
 #define QP_OPTIONS 3
+#define BG_COUNT 20
+#define UNIQUE_BG_COUNT 18
 
 typedef enum {
     STATE_SPLASH_FADE_IN,
@@ -22,8 +25,28 @@ typedef struct {
     float scale;
 } TitleBG;
 
+void LoadTexturesInLoop(Texture2D textures[], const char *paths[], int count) {
+    for (int i = 0; i < count; i++) {
+        textures[i] = LoadTexture(paths[i]);
+    }
+}
+
+void UnloadTexturesInLoop(Texture2D textures[], int count) {
+    for (int i = 0; i < count; i++) {
+        UnloadTexture(textures[i]);
+    }
+}
+
 void DrawRadialBackground(int screenWidth, int screenHeight);
 void DrawInitialBackground(int screenWidth, int screenHeight, TitleBG *titleBGs, Texture2D mmLogo, float MMlogoScale);
+
+const char *TitleBGPaths[UNIQUE_BG_COUNT] = {
+    "assets/title_bg1.png", "assets/title_bg2.png", "assets/title_bg3.png", "assets/title_bg4.png",
+    "assets/title_bg5.png", "assets/title_bg6.png", "assets/title_bg7.png", "assets/title_bg8.png",
+    "assets/title_bg9.png", "assets/title_bg10.png", "assets/title_bg11.png", "assets/title_bg12.png",
+    "assets/title_bg13.png", "assets/title_bg14.png", "assets/title_bg15.png", "assets/title_bg16.png",
+    "assets/title_bg17.png", "assets/title_bg18.png"
+};
 
 int main(void) {
     int screenWidth = 1200;
@@ -40,52 +63,37 @@ int main(void) {
 
     Texture2D cesarLogo = LoadTexture("assets/cesar_logo.png");
     Texture2D mmLogo = LoadTexture("assets/title.png");
-    Texture2D titlebg1 = LoadTexture("assets/title_bg1.png");
-    Texture2D titlebg2 = LoadTexture("assets/title_bg2.png");
-    Texture2D titlebg3 = LoadTexture("assets/title_bg3.png");
-    Texture2D titlebg4 = LoadTexture("assets/title_bg4.png");
-    Texture2D titlebg5 = LoadTexture("assets/title_bg5.png");
-    Texture2D titlebg6 = LoadTexture("assets/title_bg6.png");
-    Texture2D titlebg7 = LoadTexture("assets/title_bg7.png");
-    Texture2D titlebg8 = LoadTexture("assets/title_bg8.png");
-    Texture2D titlebg9 = LoadTexture("assets/title_bg9.png");
-    Texture2D titlebg10 = LoadTexture("assets/title_bg10.png");
-    Texture2D titlebg11 = LoadTexture("assets/title_bg11.png");
-    Texture2D titlebg12 = LoadTexture("assets/title_bg12.png");
-    Texture2D titlebg13 = LoadTexture("assets/title_bg13.png");
-    Texture2D titlebg14 = LoadTexture("assets/title_bg14.png");
-    Texture2D titlebg15 = LoadTexture("assets/title_bg15.png");
-    Texture2D titlebg16 = LoadTexture("assets/title_bg16.png");
-    Texture2D titlebg17 = LoadTexture("assets/title_bg17.png");
-    Texture2D titlebg18 = LoadTexture("assets/title_bg18.png");
+    
+    Texture2D uniqueTitleBGs[UNIQUE_BG_COUNT];
+    
+    LoadTexturesInLoop(uniqueTitleBGs, TitleBGPaths, UNIQUE_BG_COUNT);
 
     Music menuMusic = LoadMusicStream("../assets/audio/menu_principal.ogg");
     menuMusic.looping = true;
     SetMasterVolume(1.0f);
     bool isMenuMusicPlaying = false;
 
-
-    TitleBG titleBGs[20] = {
-        { titlebg1, {0.34f, 0.195f}, 2.6f },
-        { titlebg2, {0.35f, 0.79f}, 3.0f },
-        { titlebg3, {0.8f, 0.36f}, 2.7f },
-        { titlebg4, {0.56f, 0.17f}, 2.7f },
-        { titlebg5, {0.73f, 0.18f}, 2.5f },
-        { titlebg6, {0.39f, 0.79f}, 3.0f },
-        { titlebg7, {0.88f, 0.83f}, 2.5f },
-        { titlebg8, {0.88f, 0.26f}, 2.9f },
-        { titlebg9, {0.125f, 0.72f}, 2.7f },
-        { titlebg10, {0.16f, 0.17f}, 2.7f },
-        { titlebg11, {0.12f, 0.42f}, 2.8f },
-        { titlebg12, {0.28f, 0.77f}, 2.7f },
-        { titlebg13, {0.67f, 0.81f}, 2.8f },
-        { titlebg14, {0.895f, 0.47f}, 2.8f },
-        { titlebg15, {0.21f, 0.82f}, 2.5f },
-        { titlebg16, {0.86f, 0.47f}, 2.8f },
-        { titlebg16, {0.825f, 0.47f}, 2.8f },
-        { titlebg17, {0.615f, 0.82f}, 2.2f },
-        { titlebg18, {0.22f, 0.35f}, 1.6f },
-        { titlebg18, {0.78f, 0.72f}, 1.5f },
+    TitleBG titleBGs[BG_COUNT] = {
+        { uniqueTitleBGs[0], {0.34f, 0.195f}, 2.6f },
+        { uniqueTitleBGs[1], {0.35f, 0.79f}, 3.0f },
+        { uniqueTitleBGs[2], {0.8f, 0.36f}, 2.7f },
+        { uniqueTitleBGs[3], {0.56f, 0.17f}, 2.7f },
+        { uniqueTitleBGs[4], {0.73f, 0.18f}, 2.5f },
+        { uniqueTitleBGs[5], {0.39f, 0.79f}, 3.0f },
+        { uniqueTitleBGs[6], {0.88f, 0.83f}, 2.5f },
+        { uniqueTitleBGs[7], {0.88f, 0.26f}, 2.9f },
+        { uniqueTitleBGs[8], {0.125f, 0.72f}, 2.7f },
+        { uniqueTitleBGs[9], {0.16f, 0.17f}, 2.7f },
+        { uniqueTitleBGs[10], {0.12f, 0.42f}, 2.8f },
+        { uniqueTitleBGs[11], {0.28f, 0.77f}, 2.7f },
+        { uniqueTitleBGs[12], {0.67f, 0.81f}, 2.8f },
+        { uniqueTitleBGs[13], {0.895f, 0.47f}, 2.8f },
+        { uniqueTitleBGs[14], {0.21f, 0.82f}, 2.5f },
+        { uniqueTitleBGs[15], {0.86f, 0.47f}, 2.8f },
+        { uniqueTitleBGs[15], {0.825f, 0.47f}, 2.8f }, 
+        { uniqueTitleBGs[16], {0.615f, 0.82f}, 2.2f },
+        { uniqueTitleBGs[17], {0.22f, 0.35f}, 1.6f }, 
+        { uniqueTitleBGs[17], {0.78f, 0.72f}, 1.5f }, 
     };
     
     RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
@@ -434,29 +442,14 @@ int main(void) {
     }
     
     GameScene_Unload();
+    
+    UnloadTexturesInLoop(uniqueTitleBGs, UNIQUE_BG_COUNT);
+
     UnloadRenderTexture(target);
     UnloadShader(pixelShader);
     UnloadShader(gradientShader);
     UnloadTexture(mmLogo);
     UnloadTexture(cesarLogo);
-    UnloadTexture(titlebg1);
-    UnloadTexture(titlebg2);
-    UnloadTexture(titlebg3);
-    UnloadTexture(titlebg4);
-    UnloadTexture(titlebg5);
-    UnloadTexture(titlebg6);
-    UnloadTexture(titlebg7);
-    UnloadTexture(titlebg8);
-    UnloadTexture(titlebg9);
-    UnloadTexture(titlebg10);
-    UnloadTexture(titlebg11);
-    UnloadTexture(titlebg12);
-    UnloadTexture(titlebg13);
-    UnloadTexture(titlebg14);
-    UnloadTexture(titlebg15);
-    UnloadTexture(titlebg16);
-    UnloadTexture(titlebg17);
-    UnloadTexture(titlebg18);
     UnloadImage(icon);
 
     StopMusicStream(menuMusic);
@@ -561,7 +554,7 @@ void DrawInitialBackground(int screenWidth, int screenHeight, TitleBG *titleBGs,
         (Vector2){screenWidth * 0.73f, screenHeight * 0.25f},
         thickness, lineColor);
 
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < BG_COUNT; i++) {
         Texture2D tex = titleBGs[i].texture;
         float scale = titleBGs[i].scale;
 
