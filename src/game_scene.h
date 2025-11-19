@@ -26,7 +26,9 @@ typedef enum {
     PLAYER_STATE_WALK,
     PLAYER_STATE_JUMP,
     PLAYER_STATE_FALL,
-    PLAYER_STATE_ATTACK
+    PLAYER_STATE_ATTACK,
+    PLAYER_STATE_HURT,
+    PLAYER_STATE_DEAD
 } PlayerState;
 
 typedef enum {
@@ -44,6 +46,13 @@ typedef struct Player {
     PlayerState state;
     int attackFrameCounter;
     Moveset *moves;
+    Move *currentMove;
+    float health;
+    float maxHealth;
+    float currentHealth;
+    int maxUlt;
+    int currentUlt;
+    int roundsWon;
 
     bool isCPU;
     AIState aiState;
@@ -55,12 +64,14 @@ typedef struct HitboxNode {
     float damage;
     Vector2 knockback;
     int lifetime;
+    bool isPlayer1;
     struct HitboxNode *next;
 } HitboxNode;
 
 void GameScene_Init(void);
-void GameScene_Update(void);
+int GameScene_Update(void);
 void GameScene_Draw(void);
 void GameScene_Unload(void);
+void PlayerTakeDamage(Player *victim, float damage, Vector2 knockback);
 
 #endif

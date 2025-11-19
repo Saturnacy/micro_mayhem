@@ -285,7 +285,13 @@ int main(void) {
                 break;
 
             case STATE_GAMEPLAY:
-                GameScene_Update();
+                int gameResult = GameScene_Update();
+
+                if (gameResult == 1) {
+                    currentState = STATE_QUICKPLAY_MENU;
+                    selectedOption = 0;
+                }
+                
                 break;
         }
 
