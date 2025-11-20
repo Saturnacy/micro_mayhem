@@ -3,6 +3,9 @@
 
 #include "raylib.h"
 
+#define GAME_WIDTH 1200
+#define GAME_HEIGHT 720
+
 typedef struct Move {
     int startupFrames;
     int activeFrames;
@@ -73,5 +76,21 @@ int GameScene_Update(void);
 void GameScene_Draw(void);
 void GameScene_Unload(void);
 void PlayerTakeDamage(Player *victim, float damage, Vector2 knockback);
+
+
+typedef enum {
+    LANG_EN,
+    LANG_PT
+} GameLanguage;
+
+typedef struct {
+    float masterVolume;     
+    float musicVolume;      
+    float sfxVolume;        
+    int resolutionIndex;    
+    bool fullscreen;
+    GameLanguage language;
+} GameSettings;
+
 
 #endif

@@ -102,8 +102,8 @@ static void UpdateHuman(Player *player, float dt) {
 
     player->position = Vector2Add(player->position, player->velocity);
 
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
+    int screenWidth = GAME_WIDTH;   
+    int screenHeight = GAME_HEIGHT; 
 
     if (player->position.x - PLAYER_HALF_WIDTH < 0) {
         player->position.x = PLAYER_HALF_WIDTH;
@@ -199,7 +199,6 @@ static void UpdateHuman(Player *player, float dt) {
         }
     }
 
-    //DEBUG
     if (IsKeyPressed(KEY_C)) player1->currentHealth -= 10;
     if (IsKeyPressed(KEY_V)) player1->currentUlt++;
     if (IsKeyPressed(KEY_B)) player1->roundsWon++;
@@ -365,8 +364,8 @@ static void UpdateAI(Player *ai, Player *target, float dt) {
 
     ai->position = Vector2Add(ai->position, ai->velocity);
 
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
+    int screenWidth = GAME_WIDTH;
+    int screenHeight = GAME_HEIGHT;
 
     if (ai->position.x - PLAYER_HALF_WIDTH < 0) {
         ai->position.x = PLAYER_HALF_WIDTH;
@@ -587,8 +586,8 @@ int GameScene_Update(void) {
 }
 
 void GameScene_Draw(void) {
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), SKYBLUE);
-    DrawRectangle(0, 600, GetScreenWidth(), 120, GREEN);
+    DrawRectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, SKYBLUE);
+    DrawRectangle(0, 600, GAME_WIDTH, 120, GREEN);
 
     if (player1->state != PLAYER_STATE_ATTACK) {
         DrawRectangleLinesEx(
@@ -628,7 +627,7 @@ void GameScene_Draw(void) {
     float uiScale = 1.7f;
     
     float frameW = texGuiFrame.width * uiScale;
-    float startX = (GetScreenWidth() - frameW) / 2.0f;
+    float startX = (GAME_WIDTH - frameW) / 2.0f;
     float startY = 20.0f;
 
     DrawTextureEx(texGuiFrame, (Vector2){startX, startY}, 0.0f, uiScale, WHITE);
@@ -722,26 +721,26 @@ void GameScene_Draw(void) {
         
         int fontSize = 80;
         int textWidth = MeasureText(countdownText, fontSize);
-        DrawText(countdownText, (GetScreenWidth() - textWidth)/2, (GetScreenHeight() - fontSize)/2, fontSize, YELLOW);
+        DrawText(countdownText, (GAME_WIDTH - textWidth)/2, (GAME_HEIGHT - fontSize)/2, fontSize, YELLOW);
     }
 
     else if (sceneState == SCENE_STATE_ROUND_END) {
         const char* text = "KO!";
         int fontSize = 100;
-        DrawText(text, (GetScreenWidth() - MeasureText(text, fontSize))/2, (GetScreenHeight() - fontSize)/2, fontSize, RED);
+        DrawText(text, (GAME_WIDTH - MeasureText(text, fontSize))/2, (GAME_HEIGHT - fontSize)/2, fontSize, RED);
     }
     
     else if (sceneState == SCENE_STATE_GAME_OVER) {
-        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), (Color){0,0,0, 200});
+        DrawRectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, (Color){0,0,0, 200});
 
         char* wText = (matchWinner == 1) ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!";
         Color wColor = (matchWinner == 1) ? GREEN : BLUE;
         
         int fontSize = 60;
-        DrawText(wText, (GetScreenWidth() - MeasureText(wText, fontSize))/2, GetScreenHeight()/2 - 50, fontSize, wColor);
+        DrawText(wText, (GAME_WIDTH - MeasureText(wText, fontSize))/2, GAME_HEIGHT/2 - 50, fontSize, wColor);
 
         const char* subText = "Press ENTER to Return";
-        DrawText(subText, (GetScreenWidth() - MeasureText(subText, 30))/2, GetScreenHeight()/2 + 20, 30, RAYWHITE);
+        DrawText(subText, (GAME_WIDTH - MeasureText(subText, 30))/2, GAME_HEIGHT/2 + 20, 30, RAYWHITE);
     }
 }
 
