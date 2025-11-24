@@ -1,13 +1,15 @@
 #include "raylib.h"
+#include "raymath.h"
 #include <math.h>
 #include <stdio.h>
 #include "game_scene.h"
+#include "custom_fonts.h"
 
 #define MENU_OPTIONS 5
 #define QP_OPTIONS 3
 #define BG_COUNT 20
 #define UNIQUE_BG_COUNT 18
-#define SETTINGS_OPTIONS 6
+#define SETTINGS_OPTIONS 8
 
 typedef enum {
     STATE_SPLASH_FADE_IN,
@@ -52,34 +54,66 @@ const char *TitleBGPaths[UNIQUE_BG_COUNT] = {
 };
 
 int main(void) {
-    // Resoluções suportadas
+    // =========================================================
+    // 1. INICIALIZAÇÃO DO SISTEMA E JANELA
+    // =========================================================
     const int resWidths[] = { 1200, 1366, 1920 };
     const int resHeights[] = { 720, 768, 1080 };
     int maxResolutions = 3;
-
-    // Inicializa com a primeira resolução
+    
     int screenWidth = resWidths[0];
     int screenHeight = resHeights[0];
 
     InitWindow(screenWidth, screenHeight, "Micro Mayhem");
-    InitAudioDevice();
     SetTargetFPS(60);
-
-    GameState currentState = STATE_SPLASH_FADE_IN;
-
+    
     Image icon = LoadImage("assets/exe_icon.png");
     SetWindowIcon(icon);
 
+    // =========================================================
+    // 2. SISTEMA DE ÁUDIO
+    // =========================================================
+    InitAudioDevice();
+    
+    Music menuMusic = LoadMusicStream("assets/audio/menu_principal.ogg");
+    menuMusic.looping = true;
+    bool isMenuMusicPlaying = false;
+
+    // =========================================================
+    // 3. SHADERS E RENDER TEXTURE (SISTEMA VISUAL)
+    // =========================================================
+    RenderTexture2D target = LoadRenderTexture(GAME_WIDTH, GAME_HEIGHT);
+    SetTextureFilter(target.texture, TEXTURE_FILTER_POINT); 
+
+    Shader pixelShader = LoadShader(0, "assets/shaders/pixelizer.fs");
+    int pixelSizeLoc = GetShaderLocation(pixelShader, "pixelSize");
+    int renderSizeLoc = GetShaderLocation(pixelShader, "renderSize");
+    float renderSize[2] = { (float)GAME_WIDTH, (float)GAME_HEIGHT };
+    SetShaderValue(pixelShader, renderSizeLoc, renderSize, SHADER_UNIFORM_VEC2);
+    float currentPixelSize = 20.0f;
+
+    Shader gradientShader = LoadShader(0, "assets/shaders/radial_gradient.fs");
+    int resLoc = GetShaderLocation(gradientShader, "resolution");
+    int centerLoc = GetShaderLocation(gradientShader, "colorCenter");
+    int edgeLoc = GetShaderLocation(gradientShader, "colorEdge");
+    Vector2 renderResolution = { (float)GAME_WIDTH, (float)GAME_HEIGHT };
+    float centerColor[3] = { 11/255.0f, 22/255.0f, 79/255.0f };
+    float edgeColor[3] = { 9/255.0f, 15/255.0f, 29/255.0f };
+
+    // =========================================================
+    // 4. ASSETS: LOGOS E FONTES
+    // =========================================================
     Texture2D cesarLogo = LoadTexture("assets/cesar_logo.png");
     Texture2D mmLogo = LoadTexture("assets/title.png");
     
+    Font titleFont = LoadTitleFont("assets/title_font.png");
+    Font mainFont = LoadMainFont("assets/main_font.png");
+
+    // =========================================================
+    // 5. ASSETS: BACKGROUNDS (ARRAYS E CARREGAMENTO)
+    // =========================================================
     Texture2D uniqueTitleBGs[UNIQUE_BG_COUNT];
     LoadTexturesInLoop(uniqueTitleBGs, TitleBGPaths, UNIQUE_BG_COUNT);
-
-    Music menuMusic = LoadMusicStream("../assets/audio/menu_principal.ogg");
-    menuMusic.looping = true;
-    SetMasterVolume(1.0f);
-    bool isMenuMusicPlaying = false;
 
     TitleBG titleBGs[BG_COUNT] = {
         { uniqueTitleBGs[0], {0.34f, 0.195f}, 2.6f },
@@ -104,80 +138,113 @@ int main(void) {
         { uniqueTitleBGs[17], {0.78f, 0.72f}, 1.5f }, 
     };
 
-    RenderTexture2D target = LoadRenderTexture(GAME_WIDTH, GAME_HEIGHT);
-    SetTextureFilter(target.texture, TEXTURE_FILTER_POINT); 
-
-    Shader pixelShader = LoadShader(0, "assets/shaders/pixelizer.fs");
-    Shader gradientShader = LoadShader(0, "assets/shaders/radial_gradient.fs");
-    
-    int resLoc = GetShaderLocation(gradientShader, "resolution");
-    int centerLoc = GetShaderLocation(gradientShader, "colorCenter");
-    int edgeLoc = GetShaderLocation(gradientShader, "colorEdge");
-
-    Vector2 renderResolution = { (float)GAME_WIDTH, (float)GAME_HEIGHT };
-
-    float centerColor[3] = { 11/255.0f, 22/255.0f, 79/255.0f };
-    float edgeColor[3] = { 9/255.0f, 15/255.0f, 29/255.0f };
-
-    int pixelSizeLoc = GetShaderLocation(pixelShader, "pixelSize");
-    int renderSizeLoc = GetShaderLocation(pixelShader, "renderSize");
-
-    float renderSize[2] = { (float)GAME_WIDTH, (float)GAME_HEIGHT };
-    SetShaderValue(pixelShader, renderSizeLoc, renderSize, SHADER_UNIFORM_VEC2);
-
-    char *text = "Press ENTER to begin";
-    int fontSize = 30;
-    int textWidth = MeasureText(text, fontSize);
-    
+    // =========================================================
+    // 6. CONFIGURAÇÃO DE UI, TEXTO E ESCALAS
+    // =========================================================
+    const char *title_text = "PRESS ENTER TO BEGIN";
+    float fontSize = titleFont.baseSize * 1.5f; 
+    float fontSpacing = 3.0f;
+    Vector2 textSize = MeasureTextEx(titleFont, title_text, fontSize, fontSpacing);
     Vector2 textPosition = {
-        (1200 - textWidth) / 2.0f,
-        (720 / 2.0f) + 150
+        (1200 - textSize.x) / 2.0f,
+        (720 / 1.65f) + 150
     };
+
+    float mainFontSpacing = 2.0f;
+    float scaleTitle = 3.0f;
+    float scaleOptions = 1.3f;
+    float scaleSmall = 1.5f;
+
+    float fontSizeTitle = mainFont.baseSize * scaleTitle;
+    float fontSizeOption = mainFont.baseSize * scaleOptions;
+    float fontSizeSmall = mainFont.baseSize * scaleSmall;
     
     float CESARlogoscale = 2.0f;
     float MMlogoScale = 2.0f; 
-    bool running = true;
-    int frameCounter = 0;
-    float currentPixelSize = 20.0f;
-    float fadeAlpha = 255.0f;
 
-    char* menuOptions[MENU_OPTIONS] = {
-        "Quick Play",
-        "Arcade",
-        "Extras",
-        "Settings",
-        "Quit Game"
+    // =========================================================
+    // 7. DADOS DO MENU PRINCIPAL (TEXTOS E ÍCONES)
+    // =========================================================
+    const char* text_menu_pt[] = { "Jogo Rápido", "Arcade", "Extras", "Opções", "Sair" };
+    const char* text_menu_en[] = { "Quick Play", "Arcade", "Extras", "Settings", "Quit Game" };
+    
+    const char *iconPaths[MENU_OPTIONS] = {
+        "assets/QP_icon.png",
+        "assets/Arcade_icon.png",
+        "assets/Extras_icon.png",
+        "assets/Settings_icon.png",
+        "assets/QG_icon.png"
     };
 
+    Texture2D menuIcons[MENU_OPTIONS];
+    for (int i = 0; i < MENU_OPTIONS; i++) {
+        menuIcons[i] = LoadTexture(iconPaths[i]);
+        SetTextureFilter(menuIcons[i], TEXTURE_FILTER_POINT);
+        SetTextureWrap(menuIcons[i], TEXTURE_WRAP_CLAMP);
+    }
+
+    float iconScales[MENU_OPTIONS] = { 3.0f, 3.0f, 3.0f, 3.0f, 3.0f };
+    float baseScale = 3.0f;
+    float selectedScale = 4.0f;
+    float floatSpeed = 6.0f;
+    float floatAmp = 5.0f;
     int selectedOption = 0;
-    int optionFontSize = 40;
 
-    const char* text_menu_pt[] = { "Jogo Rapido", "Arcade", "Creditos", "Opcoes", "Sair" };
-    const char* text_menu_en[] = { "Quick Play", "Arcade", "Credits", "Settings", "Quit Game" };
-    
-    const char* text_settings_pt[] = { "Volume Geral", "Musica", "Efeitos (SFX)", "Resolucao", "Idioma: PT-BR", "Voltar" };
-    const char* text_settings_en[] = { "Master Volume", "Music", "SFX", "Resolution", "Language: ENG", "Return" };
-
+    // =========================================================
+    // 8. DADOS DE SUB-MENUS (QUICK PLAY E SETTINGS)
+    // =========================================================
     const char* text_qp_pt[] = { "Um Jogador", "Multijogador", "Voltar" };
     const char* text_qp_en[] = { "Singleplayer", "Multiplayer", "Return" };
+
+    const char* text_settings_pt[] = {
+        "Volume Geral",
+        "Música",
+        "Efeitos (SFX)",
+        "Resolução",
+        "Tela Cheia",
+        "Idioma: PT-BR",
+        "Créditos",
+        "Voltar"
+    };
+
+    const char* text_settings_en[] = {
+        "Master Volume",
+        "Music",
+        "SFX",
+        "Resolution",
+        "Fullscreen",
+        "Language: ENG",
+        "Credits",
+        "Return"
+    };
+
+    // =========================================================
+    // 9. ESTADO GLOBAL DO JOGO E SETTINGS
+    // =========================================================
+    GameState currentState = STATE_SPLASH_FADE_IN;
+    bool running = true;
     
-    // Estado inicial das Configurações
+    int frameCounter = 0;
+    float fadeAlpha = 255.0f;
+
     GameSettings settings = { 
-        1.0f, 1.0f, 1.0f,   // Volumes
-        0,                  // Resolução (Indice 0 = 1200x720)
-        false,              // Fullscreen
-        LANG_PT             // Começa em Português
+        1.0f, 1.0f, 1.0f,
+        0,
+        false,
+        LANG_EN
     };
     SetMasterVolume(settings.masterVolume);
 
+    // =========================================================
+    // LOOP PRINCIPAL
+    // =========================================================
+
     while (running && !WindowShouldClose()) {
-        
         if (IsKeyPressed(KEY_F11)) {
             ToggleFullscreen();
             settings.fullscreen = !settings.fullscreen;
         }
 
-        // Atualiza musica continuamente
         if (isMenuMusicPlaying) {
             SetMusicVolume(menuMusic, settings.musicVolume);
             UpdateMusicStream(menuMusic);
@@ -265,7 +332,6 @@ int main(void) {
                         case 1:
                             break;
                         case 2:
-                            currentState = STATE_CREDITS;
                             break;
                         case 3:
                             currentState = STATE_SETTINGS;
@@ -318,37 +384,32 @@ int main(void) {
                     if (selectedOption < 0) selectedOption = SETTINGS_OPTIONS - 1;
                 }
 
-                // Esquerda/Direita para mudar valores
-                if (IsKeyPressed(KEY_LEFT)) {
+                if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_RIGHT)) {
+
+                    int dir = IsKeyPressed(KEY_RIGHT) ? 1 : -1;
+
                     switch(selectedOption) {
-                        case 0: settings.masterVolume -= 0.1f; break;
-                        case 1: settings.musicVolume -= 0.1f; break;
-                        case 2: settings.sfxVolume -= 0.1f; break;
-                        case 3: // Resolução
-                            settings.resolutionIndex--;
-                            if (settings.resolutionIndex < 0) settings.resolutionIndex = maxResolutions - 1;
-                            SetWindowSize(resWidths[settings.resolutionIndex], resHeights[settings.resolutionIndex]);
-                            SetWindowPosition((GetMonitorWidth(0) - resWidths[settings.resolutionIndex])/2, (GetMonitorHeight(0) - resHeights[settings.resolutionIndex])/2);
-                            break;
-                        case 4: settings.language = LANG_EN; break;
-                    }
-                }
-                if (IsKeyPressed(KEY_RIGHT)) {
-                    switch(selectedOption) {
-                        case 0: settings.masterVolume += 0.1f; break;
-                        case 1: settings.musicVolume += 0.1f; break;
-                        case 2: settings.sfxVolume += 0.1f; break;
-                        case 3: // Resolução
-                            settings.resolutionIndex++;
+                        case 0: settings.masterVolume += 0.1f * dir; break;
+                        case 1: settings.musicVolume += 0.1f * dir; break;
+                        case 2: settings.sfxVolume += 0.1f * dir; break;
+                        case 3:
+                            settings.resolutionIndex += dir;
                             if (settings.resolutionIndex >= maxResolutions) settings.resolutionIndex = 0;
+                            if (settings.resolutionIndex < 0) settings.resolutionIndex = maxResolutions - 1;
+                            
                             SetWindowSize(resWidths[settings.resolutionIndex], resHeights[settings.resolutionIndex]);
                             SetWindowPosition((GetMonitorWidth(0) - resWidths[settings.resolutionIndex])/2, (GetMonitorHeight(0) - resHeights[settings.resolutionIndex])/2);
                             break;
-                        case 4: settings.language = LANG_PT; break;
+                        case 4:
+                            ToggleFullscreen();
+                            settings.fullscreen = IsWindowFullscreen(); 
+                            break;
+                        case 5:
+                            settings.language = (settings.language == LANG_EN) ? LANG_PT : LANG_EN; 
+                            break;
                     }
                 }
 
-                // Travar Volumes
                 if (settings.masterVolume > 1.0f) settings.masterVolume = 1.0f;
                 if (settings.masterVolume < 0.0f) settings.masterVolume = 0.0f;
                 if (settings.musicVolume > 1.0f) settings.musicVolume = 1.0f;
@@ -358,9 +419,15 @@ int main(void) {
                 
                 SetMasterVolume(settings.masterVolume);
 
-                // Botão Voltar
                 if (IsKeyPressed(KEY_ENTER)) {
-                    if (selectedOption == 5) {
+                    if (selectedOption == 4) {
+                        ToggleFullscreen();
+                        settings.fullscreen = IsWindowFullscreen();
+                    }
+                    else if (selectedOption == 6) {
+                        currentState = STATE_CREDITS;
+                    }
+                    else if (selectedOption == 7) {
                         currentState = STATE_MENU;
                         selectedOption = 3;
                     }
@@ -392,7 +459,6 @@ int main(void) {
                 DrawRectangle(0, 0, 1200, 720, WHITE);
                 EndShaderMode();
             } else if (currentState == STATE_SETTINGS || currentState == STATE_CREDITS) {
-                // Fundo diferente para Settings/Credits
             } else {
                 ClearBackground(BLACK);
             }
@@ -434,32 +500,55 @@ int main(void) {
 
                 case STATE_MENU:
                 {
-                    DrawInitialBackground(1200, 720, titleBGs, mmLogo, MMlogoScale);
+                DrawInitialBackground(1200, 720, titleBGs, mmLogo, MMlogoScale);
 
-                    // Seleciona texto com base na lingua
-                    const char **currentText = (settings.language == LANG_EN) ? text_menu_en : text_menu_pt;
-                    const char *menuTitle = (settings.language == LANG_EN) ? "MAIN MENU" : "MENU PRINCIPAL";
+                const char **currentText = (settings.language == LANG_EN) ? text_menu_en : text_menu_pt;
 
-                    int titleSize = 60;
-                    int titleWidth = MeasureText(menuTitle, titleSize);
-                    DrawText(menuTitle, (1200 - titleWidth) / 2, 720 * 0.18f, titleSize, WHITE);
+                Vector2 menuPositions[MENU_OPTIONS] = {
+                    { 300, 320 },
+                    { 600, 280 },
+                    { 900, 320 },
+                    { 450, 550 },
+                    { 750, 550 }
+                };
 
-                    for (int i = 0; i < MENU_OPTIONS; i++) {
-                        int textWidth = MeasureText(currentText[i], optionFontSize);
-                        Color optionColor = (i == selectedOption)
-                            ? (Color){255, 255, 200, 255}
-                            : (Color){200, 200, 255, 255};
+                float labelScale = 1.0f;
+                float labelSpacing = 1.5f;
 
-                        DrawText(currentText[i], (1200 - textWidth) / 2, 720 * 0.35f + i * 60, optionFontSize, optionColor);
+                for (int i = 0; i < MENU_OPTIONS; i++) {
+                    
+                    float targetScale = (i == selectedOption) ? selectedScale : baseScale;
+                    iconScales[i] = Lerp(iconScales[i], targetScale, 0.15f);
 
-                        if (i == selectedOption) {
-                            DrawTriangle(
-                                (Vector2){ (1200 - textWidth) / 2 - 30, 720 * 0.35f + i * 60 + 20 },
-                                (Vector2){ (1200 - textWidth) / 2 - 10, 720 * 0.35f + i * 60 + 10 },
-                                (Vector2){ (1200 - textWidth) / 2 - 10, 720 * 0.35f + i * 60 + 30 },
-                                optionColor
-                            );
-                        }
+                    float yOffset = 0.0f;
+                    if (i == selectedOption) {
+                        yOffset = sinf(GetTime() * floatSpeed) * floatAmp;
+                    }
+
+                    Texture2D icon = menuIcons[i];
+                    float scale = iconScales[i];
+
+                    float scaledW = icon.width * scale;
+                    float scaledH = icon.height * scale;
+
+                    Vector2 basePos = menuPositions[i];
+
+                    float drawX = basePos.x - (scaledW / 2.0f);
+                    float drawY = basePos.y - (scaledH / 2.0f) + yOffset;
+
+                    Color tint = (i == selectedOption) ? WHITE : LIGHTGRAY;
+
+                    DrawTextureEx(icon, (Vector2){drawX, drawY}, 0.0f, scale, tint);
+                    
+                    const char* labelText = currentText[i];
+                    Vector2 labelSize = MeasureTextEx(mainFont, labelText, mainFont.baseSize * labelScale, labelSpacing);
+
+                    float textX = drawX + (scaledW / 2.0f) - (labelSize.x / 2.0f);
+                    float textY = drawY + scaledH + 10.0f;
+
+                    Color textColor = (i == selectedOption) ? (Color){255, 255, 150, 255} : GRAY;
+
+                    DrawTextEx(mainFont, labelText, (Vector2){textX, textY}, mainFont.baseSize * labelScale, labelSpacing, textColor);
                     }
                 }
                 break;
@@ -469,11 +558,12 @@ int main(void) {
                     ClearBackground((Color){10, 12, 30, 255});
                     const char **currentSetText = (settings.language == LANG_EN) ? text_settings_en : text_settings_pt;
                     
-                    DrawText((settings.language == LANG_EN) ? "SETTINGS" : "CONFIGURACOES", 100, 60, 60, WHITE);
+                    const char* settTitle = (settings.language == LANG_EN) ? "Settings" : "Configurações";
+                    DrawTextEx(mainFont, settTitle, (Vector2){100, 60}, fontSizeTitle, mainFontSpacing, WHITE);
 
                     for (int i = 0; i < SETTINGS_OPTIONS; i++) {
                         Color color = (i == selectedOption) ? YELLOW : GRAY;
-                        DrawText(currentSetText[i], 100, 180 + (i * 70), 40, color);
+                        DrawTextEx(mainFont, currentSetText[i], (Vector2){100, 180 + (i * 70)}, fontSizeOption, mainFontSpacing, color);
 
                         char valText[40];
                         sprintf(valText, ""); 
@@ -482,8 +572,10 @@ int main(void) {
                         else if (i == 1) sprintf(valText, "< %.0f%% >", settings.musicVolume * 100);
                         else if (i == 2) sprintf(valText, "< %.0f%% >", settings.sfxVolume * 100);
                         else if (i == 3) sprintf(valText, "< %dx%d >", resWidths[settings.resolutionIndex], resHeights[settings.resolutionIndex]);
-
-                        DrawText(valText, 500, 180 + (i * 70), 40, WHITE);
+                        
+                        if (i < 5) {
+                             DrawTextEx(mainFont, valText, (Vector2){500, 180 + (i * 70)}, fontSizeOption, mainFontSpacing, WHITE);
+                        }
                     }
                 }
                 break;
@@ -491,17 +583,47 @@ int main(void) {
                 case STATE_CREDITS:
                 {
                     ClearBackground((Color){5, 5, 10, 255});
-                    DrawText("CREDITS", 100, 60, 60, WHITE);
+
+                    float scaleCredTitle = 2.5f;
+                    float scaleCredHeader = 1.3f;
+                    float scaleCredText = 1.0f;
+
+                    float sizeTitle = mainFont.baseSize * scaleCredTitle;
+                    float sizeHeader = mainFont.baseSize * scaleCredHeader;
+                    float sizeText = mainFont.baseSize * scaleCredText;
+
+                    const char* txtTitle = (settings.language == LANG_EN) ? "CREDITS" : "CREDITOS";
+                    Vector2 mTitle = MeasureTextEx(mainFont, txtTitle, sizeTitle, mainFontSpacing);
+                    DrawTextEx(mainFont, txtTitle, (Vector2){(1200 - mTitle.x)/2, 60}, sizeTitle, mainFontSpacing, WHITE);
+
+                    const char* line1 = "João Pedro Pessôa - Lead Developer & Producer";
+                    const char* line2 = "Davi de Lucena - Art Director";
+                    const char* line3 = "Filipe Correia - QA Specialist";
+
+                    Vector2 m1 = MeasureTextEx(mainFont, line1, sizeText, mainFontSpacing);
+                    DrawTextEx(mainFont, line1, (Vector2){(1200 - m1.x)/2, 200}, sizeText, mainFontSpacing, WHITE);
+
+                    Vector2 m2 = MeasureTextEx(mainFont, line2, sizeText, mainFontSpacing);
+                    DrawTextEx(mainFont, line2, (Vector2){(1200 - m2.x)/2, 250}, sizeText, mainFontSpacing, WHITE);
+
+                    Vector2 m3 = MeasureTextEx(mainFont, line3, sizeText, mainFontSpacing);
+                    DrawTextEx(mainFont, line3, (Vector2){(1200 - m3.x)/2, 300}, sizeText, mainFontSpacing, WHITE);
+
+                    const char* txtSpecial = (settings.language == LANG_EN) ? "Special Thanks" : "Agradecimentos Especiais";
+                    Vector2 mSpecial = MeasureTextEx(mainFont, txtSpecial, sizeHeader, mainFontSpacing);
+                    DrawTextEx(mainFont, txtSpecial, (Vector2){(1200 - mSpecial.x)/2, 420}, sizeHeader, mainFontSpacing, YELLOW); // Amarelo para destaque
+
+                    const char* lineTiago = "Tiago Barros";
+                    Vector2 mTiago = MeasureTextEx(mainFont, lineTiago, sizeText, mainFontSpacing);
+                    DrawTextEx(mainFont, lineTiago, (Vector2){(1200 - mTiago.x)/2, 470}, sizeText, mainFontSpacing, WHITE);
                     
-                    DrawText("Superiores:", 100, 180, 30, GRAY);
-                    DrawText("Saturnacy - Chefão", 100, 220, 40, WHITE);
-                    
-                    DrawText("Escória:", 100, 300, 30, GRAY);
-                    DrawText("LipeC - Escravo", 100, 340, 40, WHITE);
-                    DrawText("Davi - Escravo", 100, 380, 40, WHITE);
-                    
+                    const char* lineDaniel = "Daniel Bezerra";
+                    Vector2 mDaniel = MeasureTextEx(mainFont, lineDaniel, sizeText, mainFontSpacing);
+                    DrawTextEx(mainFont, lineDaniel, (Vector2){(1200 - mDaniel.x)/2, 510}, sizeText, mainFontSpacing, WHITE);
+
                     const char* returnText = (settings.language == LANG_EN) ? "Press ENTER to Return" : "Pressione ENTER para Voltar";
-                    DrawText(returnText, 100, 600, 30, DARKGRAY);
+                    Vector2 mRet = MeasureTextEx(mainFont, returnText, sizeText, mainFontSpacing);
+                    DrawTextEx(mainFont, returnText, (Vector2){(1200 - mRet.x)/2, 620}, sizeText, mainFontSpacing, DARKGRAY);
                 }
                 break;
 
@@ -511,16 +633,16 @@ int main(void) {
                     const char **qpText = (settings.language == LANG_EN) ? text_qp_en : text_qp_pt;
 
                     for (int i = 0; i < 3; i++) {
-                        int textWidth = MeasureText(qpText[i], optionFontSize);
+                        Vector2 optSize = MeasureTextEx(mainFont, qpText[i], fontSizeOption, mainFontSpacing);
                         Color optionColor = (i == selectedOption) ? (Color){255, 255, 200, 255} : (Color){200, 200, 255, 255};
 
-                        DrawText(qpText[i], (1200 - textWidth) / 2, 720 * 0.35f + i * 60, optionFontSize, optionColor);
+                        DrawTextEx(mainFont, qpText[i], (Vector2){(1200 - optSize.x) / 2, 720 * 0.35f + i * 60}, fontSizeOption, mainFontSpacing, optionColor);
 
                         if (i == selectedOption) {
                             DrawTriangle(
-                                (Vector2){ (1200 - textWidth) / 2 - 30, 720 * 0.35f + i * 60 + 20 },
-                                (Vector2){ (1200 - textWidth) / 2 - 10, 720 * 0.35f + i * 60 + 10 },
-                                (Vector2){ (1200 - textWidth) / 2 - 10, 720 * 0.35f + i * 60 + 30 },
+                                (Vector2){ (1200 - optSize.x) / 2 - 30, 720 * 0.35f + i * 60 + 20 },
+                                (Vector2){ (1200 - optSize.x) / 2 - 10, 720 * 0.35f + i * 60 + 10 },
+                                (Vector2){ (1200 - optSize.x) / 2 - 10, 720 * 0.35f + i * 60 + 30 },
                                 optionColor
                             );
                         }
@@ -555,10 +677,7 @@ int main(void) {
             if (currentState == STATE_TITLE_MM) {
                 bool showText = fmod(GetTime(), 1.0) < 0.5;
                 if (showText) {
-                    // Ajuste de escala para o texto "Press Enter"
-                    float scaleX = (float)GetScreenWidth() / 1200.0f;
-                    float scaleY = (float)GetScreenHeight() / 720.0f;
-                    DrawText(text, textPosition.x * scaleX, textPosition.y * scaleY, fontSize * scaleX, RAYWHITE);
+                    DrawTextEx(titleFont, title_text, textPosition, fontSize, fontSpacing, RAYWHITE);
                 }
             }
 
@@ -568,13 +687,16 @@ int main(void) {
     GameScene_Unload();
     
     UnloadTexturesInLoop(uniqueTitleBGs, UNIQUE_BG_COUNT);
-
     UnloadRenderTexture(target);
     UnloadShader(pixelShader);
     UnloadShader(gradientShader);
     UnloadTexture(mmLogo);
     UnloadTexture(cesarLogo);
     UnloadImage(icon);
+
+    for (int i = 0; i < MENU_OPTIONS; i++) {
+        UnloadTexture(menuIcons[i]);
+    }
 
     StopMusicStream(menuMusic);
     UnloadMusicStream(menuMusic);

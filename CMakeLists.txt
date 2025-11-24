@@ -7,6 +7,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 add_executable(MicroMayhem
     src/main.c
     src/game_scene.c
+    src/custom_fonts.c
 )
 
 target_include_directories(MicroMayhem PUBLIC ${PROJECT_SOURCE_DIR}/raylib/include)

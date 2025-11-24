@@ -77,7 +77,6 @@ void GameScene_Draw(void);
 void GameScene_Unload(void);
 void PlayerTakeDamage(Player *victim, float damage, Vector2 knockback);
 
-
 typedef enum {
     LANG_EN,
     LANG_PT
@@ -91,6 +90,5 @@ typedef struct {
     bool fullscreen;
     GameLanguage language;
 } GameSettings;
-
 
 #endif
