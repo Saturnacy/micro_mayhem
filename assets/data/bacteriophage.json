@@ -1,0 +1,127 @@
+{
+  "name": "Bacteriophage",
+  "stats": {
+    "health": 75.0,
+    "speed": 7.0,
+    "jump_force": 13.0,
+    "weight": 0.8
+  },
+  "moves": {
+    "side_ground": {
+      "name": "Rapid Jab",
+      "damage": 3.0,
+      "startup": 4, "active": 10, "recovery": 6,
+      "knockback": { "x": 2.0, "y": 0.0 },
+      "hitbox": { "x": 25, "y": 10, "w": 25, "h": 15 },
+      "can_combo": true, 
+      "max_combo": 3
+    },
+    "up_ground": {
+      "name": "Elastic Headbutt",
+      "damage": 7.0,
+      "startup": 8, "active": 8, "recovery": 12,
+      "knockback": { "x": 1.0, "y": -8.0 },
+      "hitbox": { "x": 0, "y": -35, "w": 20, "h": 35 }
+    },
+    "down_ground": {
+      "name": "Split Jab",
+      "damage": 5.0,
+      "startup": 6, "active": 12, "recovery": 10,
+      "knockback": { "x": 4.0, "y": 0.0 },
+      "hitbox": { "x": 10, "y": 25, "w": 40, "h": 15 },
+      "note": "Animation should visually poke both sides, logic handles front hit"
+    },
+    "neutral_ground": {
+      "name": "Vibration Pulse",
+      "damage": 4.0,
+      "startup": 5, "active": 20, "recovery": 10,
+      "knockback": { "x": 6.0, "y": -1.0 },
+      "hitbox": { "x": -15, "y": -10, "w": 70, "h": 70 },
+      "type": "MELEE_AOE"
+    },
+    "air_side": {
+      "name": "Air Kick",
+      "damage": 6.0,
+      "startup": 5, "active": 10, "recovery": 10,
+      "knockback": { "x": 5.0, "y": -2.0 },
+      "hitbox": { "x": 25, "y": 10, "w": 30, "h": 20 }
+    },
+    "air_up": {
+      "name": "Double Arm Raise",
+      "damage": 7.0,
+      "startup": 6, "active": 8, "recovery": 12,
+      "knockback": { "x": 0.0, "y": -7.0 },
+      "hitbox": { "x": -10, "y": -40, "w": 60, "h": 30 }
+    },
+    "air_down": {
+      "name": "Bio Drill",
+      "damage": 2.0,
+      "startup": 8, "active": 30, "recovery": 15,
+      "knockback": { "x": 1.0, "y": 4.0 },
+      "hitbox": { "x": 5, "y": 20, "w": 30, "h": 40 },
+      "multi_hit": true,
+      "self_velocity": { "x": 0.0, "y": 15.0 },
+      "steer_speed": 3.0
+    },
+    "air_neutral": {
+      "name": "Spore Burst",
+      "damage": 5.0,
+      "startup": 4, "active": 6, "recovery": 15,
+      "knockback": { "x": 3.0, "y": 0.0 },
+      "hitbox": { "x": -25, "y": -25, "w": 90, "h": 90 },
+      "type": "PROJECTILE_INSTANT"
+    },
+    "special_neutral": {
+      "name": "DNA Injector",
+      "damage": 2.0,
+      "startup": 10, "active": 10, "recovery": 20,
+      "knockback": { "x": 1.0, "y": -1.0 },
+      "hitbox": { "x": 30, "y": 10, "w": 30, "h": 30 },
+      "type": "MELEE", 
+      "effect": "POISON",
+      "effect_duration": 7.0
+    },
+    "special_side": {
+      "name": "Bio Rocket Forward",
+      "damage": 12.0,
+      "startup": 10, "active": 20, "recovery": 10,
+      "knockback": { "x": 15.0, "y": -5.0 },
+      "hitbox": { "x": -10, "y": 0, "w": 60, "h": 40 },
+      "type": "MELEE",
+      "self_velocity": { "x": 15.0, "y": 0.0 }
+    },
+    "special_up": {
+      "name": "Bio Rocket Up",
+      "damage": 12.0,
+      "startup": 8, "active": 10, "recovery": 10,
+      "knockback": { "x": 0.0, "y": -15.0 },
+      "hitbox": { "x": -10, "y": -20, "w": 60, "h": 60 },
+      "type": "MELEE",
+      "self_velocity": { "x": 0.0, "y": -15.0 }
+    },
+    "special_down": {
+      "name": "Infectious Sludge",
+      "damage": 6.0, 
+      "startup": 12, "active": 10, "recovery": 10,
+      "knockback": { "x": 0.0, "y": 2.0 },
+      "hitbox": { "x": 0, "y": 40, "w": 40, "h": 40 },
+      "type": "TRAP_PROJECTILE",
+      "projectile_speed": { "x": 0.0, "y": 10.0 },
+      "effect": "POISON",
+      "effect_duration": 5.0,
+      "trap_duration": 10.0,
+      "cooldown": 15.0
+    },
+    "ultimate": {
+      "name": "Orbital Bio-Nuke",
+      "damage": 35.0,
+      "startup": 40, "active": 120, "recovery": 60,
+      "knockback": { "x": 15.0, "y": -15.0 },
+      "hitbox": { "x": -150, "y": -100, "w": 300, "h": 200 },
+      "type": "ULTIMATE_FALL",
+      "self_velocity": { "x": 0.0, "y": -25.0 },
+      "steer_speed": 2.0,
+      "fall_speed": 30.0
+    }
+  }
+}

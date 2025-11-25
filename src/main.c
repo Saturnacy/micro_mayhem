@@ -108,6 +108,7 @@ int main(void) {
     
     Font titleFont = LoadTitleFont("assets/title_font.png");
     Font mainFont = LoadMainFont("assets/main_font.png");
+    GameScene_SetFont(titleFont);
 
     // =========================================================
     // 5. ASSETS: BACKGROUNDS (ARRAYS E CARREGAMENTO)
@@ -189,6 +190,17 @@ int main(void) {
     float floatSpeed = 6.0f;
     float floatAmp = 5.0f;
     int selectedOption = 0;
+
+    Texture2D qpIcons[2];
+    qpIcons[0] = LoadTexture("assets/SP_icon.png");
+    qpIcons[1] = LoadTexture("assets/MP_icon.png");
+
+    for(int i=0; i<2; i++) {
+        SetTextureFilter(qpIcons[i], TEXTURE_FILTER_POINT);
+        SetTextureWrap(qpIcons[i], TEXTURE_WRAP_CLAMP);
+    }
+
+    float qpScales[3] = { 3.0f, 3.0f, 1.0f };
 
     // =========================================================
     // 8. DADOS DE SUB-MENUS (QUICK PLAY E SETTINGS)
@@ -313,12 +325,12 @@ int main(void) {
                 break;
             
             case STATE_MENU:
-                if (IsKeyPressed(KEY_DOWN)) {
+                if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
                     selectedOption++;
                     if (selectedOption >= MENU_OPTIONS) selectedOption = 0;
                 }
 
-                if (IsKeyPressed(KEY_UP)) {
+                if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
                     selectedOption--;
                     if (selectedOption < 0) selectedOption = MENU_OPTIONS - 1;
                 }
@@ -345,17 +357,19 @@ int main(void) {
                 break;
 
             case STATE_QUICKPLAY_MENU:
-                if (IsKeyPressed(KEY_DOWN)) {
+                if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
                     selectedOption++;
-                    if (selectedOption >= QP_OPTIONS) selectedOption = 0;
+                    if (selectedOption > 2) selectedOption = 0;
                 }
-                if (IsKeyPressed(KEY_UP)) {
+
+                if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
                     selectedOption--;
-                    if (selectedOption < 0) selectedOption = QP_OPTIONS - 1;
+                    if (selectedOption < 0) selectedOption = 2;
                 }
                 if (IsKeyPressed(KEY_ENTER)) {
                     switch (selectedOption) {
                         case 0:
+                            GameScene_SetMultiplayer(false);
                             GameScene_Init();
                             if (isMenuMusicPlaying) {
                                 StopMusicStream(menuMusic);
@@ -363,8 +377,17 @@ int main(void) {
                             }
                             currentState = STATE_GAMEPLAY;
                             break;
+                            
                         case 1:
+                            GameScene_SetMultiplayer(true);
+                            GameScene_Init();
+                            if (isMenuMusicPlaying) {
+                                StopMusicStream(menuMusic);
+                                isMenuMusicPlaying = false;
+                            }
+                            currentState = STATE_GAMEPLAY;
                             break;
+                            
                         case 2:
                             currentState = STATE_MENU;
                             selectedOption = 0;
@@ -372,7 +395,6 @@ int main(void) {
                     }
                 }
                 break;
-
             
             case STATE_SETTINGS:
                 if (IsKeyPressed(KEY_DOWN)) {
@@ -437,7 +459,7 @@ int main(void) {
             case STATE_CREDITS:
                 if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
                     currentState = STATE_MENU;
-                    selectedOption = 2;
+                    selectedOption = 0;
                 }
                 break;
 
@@ -500,55 +522,54 @@ int main(void) {
 
                 case STATE_MENU:
                 {
-                DrawInitialBackground(1200, 720, titleBGs, mmLogo, MMlogoScale);
+                    DrawInitialBackground(1200, 720, titleBGs, mmLogo, MMlogoScale);
 
-                const char **currentText = (settings.language == LANG_EN) ? text_menu_en : text_menu_pt;
+                    const char **currentText = (settings.language == LANG_EN) ? text_menu_en : text_menu_pt;
 
-                Vector2 menuPositions[MENU_OPTIONS] = {
-                    { 300, 320 },
-                    { 600, 280 },
-                    { 900, 320 },
-                    { 450, 550 },
-                    { 750, 550 }
-                };
+                    Vector2 menuPositions[MENU_OPTIONS] = {
+                        { 300, 320 },
+                        { 600, 280 },
+                        { 900, 320 },
+                        { 450, 550 },
+                        { 750, 550 }
+                    };
 
-                float labelScale = 1.0f;
-                float labelSpacing = 1.5f;
+                    float labelScale = 1.0f;
+                    float labelSpacing = 1.5f;
 
-                for (int i = 0; i < MENU_OPTIONS; i++) {
+                    for (int i = 0; i < MENU_OPTIONS; i++) {
+                        float targetScale = (i == selectedOption) ? selectedScale : baseScale;
+                        iconScales[i] = Lerp(iconScales[i], targetScale, 0.15f);
+
+                        float yOffset = 0.0f;
+                        if (i == selectedOption) {
+                            yOffset = sinf(GetTime() * floatSpeed) * floatAmp;
+                        }
+
+                        Texture2D icon = menuIcons[i];
+                        float scale = iconScales[i];
+
+                        float scaledW = icon.width * scale;
+                        float scaledH = icon.height * scale;
+
+                        Vector2 basePos = menuPositions[i];
+
+                        float drawX = basePos.x - (scaledW / 2.0f);
+                        float drawY = basePos.y - (scaledH / 2.0f) + yOffset;
+
+                        Color tint = (i == selectedOption) ? WHITE : LIGHTGRAY;
+
+                        DrawTextureEx(icon, (Vector2){drawX, drawY}, 0.0f, scale, tint);
                     
-                    float targetScale = (i == selectedOption) ? selectedScale : baseScale;
-                    iconScales[i] = Lerp(iconScales[i], targetScale, 0.15f);
+                        const char* labelText = currentText[i];
+                        Vector2 labelSize = MeasureTextEx(mainFont, labelText, mainFont.baseSize * labelScale, labelSpacing);
 
-                    float yOffset = 0.0f;
-                    if (i == selectedOption) {
-                        yOffset = sinf(GetTime() * floatSpeed) * floatAmp;
-                    }
+                        float textX = drawX + (scaledW / 2.0f) - (labelSize.x / 2.0f);
+                        float textY = drawY + scaledH + 10.0f;
 
-                    Texture2D icon = menuIcons[i];
-                    float scale = iconScales[i];
+                        Color textColor = (i == selectedOption) ? (Color){255, 255, 150, 255} : GRAY;
 
-                    float scaledW = icon.width * scale;
-                    float scaledH = icon.height * scale;
-
-                    Vector2 basePos = menuPositions[i];
-
-                    float drawX = basePos.x - (scaledW / 2.0f);
-                    float drawY = basePos.y - (scaledH / 2.0f) + yOffset;
-
-                    Color tint = (i == selectedOption) ? WHITE : LIGHTGRAY;
-
-                    DrawTextureEx(icon, (Vector2){drawX, drawY}, 0.0f, scale, tint);
-                    
-                    const char* labelText = currentText[i];
-                    Vector2 labelSize = MeasureTextEx(mainFont, labelText, mainFont.baseSize * labelScale, labelSpacing);
-
-                    float textX = drawX + (scaledW / 2.0f) - (labelSize.x / 2.0f);
-                    float textY = drawY + scaledH + 10.0f;
-
-                    Color textColor = (i == selectedOption) ? (Color){255, 255, 150, 255} : GRAY;
-
-                    DrawTextEx(mainFont, labelText, (Vector2){textX, textY}, mainFont.baseSize * labelScale, labelSpacing, textColor);
+                        DrawTextEx(mainFont, labelText, (Vector2){textX, textY}, mainFont.baseSize * labelScale, labelSpacing, textColor);
                     }
                 }
                 break;
@@ -611,7 +632,7 @@ int main(void) {
 
                     const char* txtSpecial = (settings.language == LANG_EN) ? "Special Thanks" : "Agradecimentos Especiais";
                     Vector2 mSpecial = MeasureTextEx(mainFont, txtSpecial, sizeHeader, mainFontSpacing);
-                    DrawTextEx(mainFont, txtSpecial, (Vector2){(1200 - mSpecial.x)/2, 420}, sizeHeader, mainFontSpacing, YELLOW); // Amarelo para destaque
+                    DrawTextEx(mainFont, txtSpecial, (Vector2){(1200 - mSpecial.x)/2, 420}, sizeHeader, mainFontSpacing, YELLOW);
 
                     const char* lineTiago = "Tiago Barros";
                     Vector2 mTiago = MeasureTextEx(mainFont, lineTiago, sizeText, mainFontSpacing);
@@ -628,26 +649,83 @@ int main(void) {
                 break;
 
                 case STATE_QUICKPLAY_MENU:
+                {
                     DrawInitialBackground(1200, 720, titleBGs, mmLogo, MMlogoScale);
                     
                     const char **qpText = (settings.language == LANG_EN) ? text_qp_en : text_qp_pt;
+                    const char *qpTitle = (settings.language == LANG_EN) ? "GAME MODE" : "MODO DE JOGO";
+
+                    DrawTextEx(mainFont, qpTitle, (Vector2){(1200 - MeasureTextEx(mainFont, qpTitle, fontSizeTitle, mainFontSpacing).x) / 2, 50}, fontSizeTitle, mainFontSpacing, WHITE);
+
+                    Vector2 qpPositions[3] = {
+                        { 400, 360 },
+                        { 800, 360 },
+                        { 600, 600 }
+                    };
 
                     for (int i = 0; i < 3; i++) {
-                        Vector2 optSize = MeasureTextEx(mainFont, qpText[i], fontSizeOption, mainFontSpacing);
-                        Color optionColor = (i == selectedOption) ? (Color){255, 255, 200, 255} : (Color){200, 200, 255, 255};
+                        float baseS = (i == 2) ? 1.0f : 3.0f;
+                        float selS  = (i == 2) ? 1.2f : 4.0f;
+                        
+                        float targetScale = (i == selectedOption) ? selS : baseS;
+                        qpScales[i] = Lerp(qpScales[i], targetScale, 0.15f);
 
-                        DrawTextEx(mainFont, qpText[i], (Vector2){(1200 - optSize.x) / 2, 720 * 0.35f + i * 60}, fontSizeOption, mainFontSpacing, optionColor);
-
+                        float yOffset = 0.0f;
                         if (i == selectedOption) {
-                            DrawTriangle(
-                                (Vector2){ (1200 - optSize.x) / 2 - 30, 720 * 0.35f + i * 60 + 20 },
-                                (Vector2){ (1200 - optSize.x) / 2 - 10, 720 * 0.35f + i * 60 + 10 },
-                                (Vector2){ (1200 - optSize.x) / 2 - 10, 720 * 0.35f + i * 60 + 30 },
-                                optionColor
-                            );
+                            yOffset = sinf(GetTime() * floatSpeed) * floatAmp;
+                        }
+
+                        Color tint = (i == selectedOption) ? WHITE : LIGHTGRAY;
+                        Color textColor = (i == selectedOption) ? (Color){255, 255, 150, 255} : GRAY;
+
+                        if (i < 2) {
+                            Texture2D icon = qpIcons[i];
+                            float scale = qpScales[i];
+                            
+                            float scaledW = icon.width * scale;
+                            float scaledH = icon.height * scale;
+                            
+                            float drawX = qpPositions[i].x - (scaledW / 2.0f);
+                            float drawY = qpPositions[i].y - (scaledH / 2.0f) + yOffset;
+                            
+                            Vector2 drawPos = { roundf(drawX), roundf(drawY) };
+
+                            DrawTextureEx(icon, drawPos, 0.0f, scale, tint);
+
+                            const char* label = qpText[i];
+                            float lblScale = 1.2f;
+                            Vector2 lblSize = MeasureTextEx(mainFont, label, mainFont.baseSize * lblScale, 1.5f);
+                            
+                            float textX = drawX + (scaledW / 2.0f) - (lblSize.x / 2.0f);
+                            float textY = drawY + scaledH + 15.0f;
+
+                            DrawTextEx(mainFont, label, (Vector2){textX, textY}, mainFont.baseSize * lblScale, 1.5f, textColor);
+                        }
+
+                        else {
+                            const char* label = qpText[i];
+                            float scale = qpScales[i];
+                            float fontSize = mainFont.baseSize * scale;
+
+                            Vector2 lblSize = MeasureTextEx(mainFont, label, fontSize, 1.5f);
+                            
+                            float textX = qpPositions[i].x - (lblSize.x / 2.0f);
+                            float textY = qpPositions[i].y - (lblSize.y / 2.0f) + yOffset;
+
+                            DrawTextEx(mainFont, label, (Vector2){textX, textY}, fontSize, 1.5f, textColor);
+                            
+                            if (i == selectedOption) {
+                                DrawTriangle(
+                                    (Vector2){ textX - 25, textY + lblSize.y/2 },
+                                    (Vector2){ textX - 10, textY + lblSize.y/2 - 10 },
+                                    (Vector2){ textX - 10, textY + lblSize.y/2 + 10 },
+                                    textColor
+                                );
+                            }
                         }
                     }
-                    break;
+                }
+                break;
                 
                 case STATE_GAMEPLAY:
                     GameScene_Draw();
@@ -697,6 +775,9 @@ int main(void) {
     for (int i = 0; i < MENU_OPTIONS; i++) {
         UnloadTexture(menuIcons[i]);
     }
+
+    UnloadTexture(qpIcons[0]);
+    UnloadTexture(qpIcons[1]);
 
     StopMusicStream(menuMusic);
     UnloadMusicStream(menuMusic);

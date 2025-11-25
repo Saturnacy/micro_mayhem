@@ -8,6 +8,9 @@ add_executable(MicroMayhem
     src/main.c
     src/game_scene.c
     src/custom_fonts.c
+    src/cJSON.c
+    src/moveset_loader.c
+    src/combat_system.c
 )
 
 target_include_directories(MicroMayhem PUBLIC ${PROJECT_SOURCE_DIR}/raylib/include)

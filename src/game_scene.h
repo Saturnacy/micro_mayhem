@@ -6,23 +6,24 @@
 #define GAME_WIDTH 1200
 #define GAME_HEIGHT 720
 
-typedef struct Move {
-    int startupFrames;
-    int activeFrames;
-    int recoveryFrames;
-    Rectangle hitbox;
-    Vector2 knockback;
-    float damage;
-} Move;
+// --- ENUMS ---
 
-typedef struct Moveset {
-    Move sideLight;
-    Move upLight;
-    Move downLight;
-    Move airSideLight;
-    Move airUpLight;
-    Move airDownLight;
-} Moveset;
+typedef enum {
+    MOVE_TYPE_MELEE,
+    MOVE_TYPE_PROJECTILE,
+    MOVE_TYPE_PROJECTILE_INSTANT,
+    MOVE_TYPE_TRAP,
+    MOVE_TYPE_TRAP_PROJECTILE,
+    MOVE_TYPE_GRAB,
+    MOVE_TYPE_ULTIMATE,
+    MOVE_TYPE_ULTIMATE_FALL
+} MoveType;
+
+typedef enum {
+    EFFECT_NONE,
+    EFFECT_POISON,
+    EFFECT_SLOW
+} MoveEffect;
 
 typedef enum {
     PLAYER_STATE_IDLE,
@@ -41,7 +42,69 @@ typedef enum {
     AI_STATE_FLEE
 } AIState;
 
+typedef enum {
+    LANG_EN,
+    LANG_PT
+} GameLanguage;
+
+// --- STRUCTS DE DADOS (Moveset, Input, Settings) ---
+
+typedef struct Move {
+    char name[32];
+    int startupFrames;
+    int activeFrames;
+    int recoveryFrames;
+    Rectangle hitbox;
+    Vector2 knockback;
+    float damage;
+
+    MoveType type;
+    MoveEffect effect;
+    float effectDuration;
+    Vector2 projectileSpeed;
+
+    Vector2 selfVelocity;
+    float steerSpeed;
+    float fallSpeed;
+    bool multiHit;
+    bool canCombo;
+    int maxCombo;
+    
+    float cooldown;
+    float lastUsedTime;
+    float trapDuration;
+} Move;
+
+typedef struct Moveset {
+    Move sideGround, upGround, downGround, neutralGround;
+    Move airSide, airUp, airDown, airNeutral;
+    Move specialNeutral, specialSide, specialUp, specialDown;
+    Move ultimate;
+} Moveset;
+
+typedef struct {
+    KeyboardKey left;
+    KeyboardKey right;
+    KeyboardKey up;
+    KeyboardKey down;
+    KeyboardKey jump;
+    KeyboardKey attack;
+    KeyboardKey special;
+} InputConfig;
+
+typedef struct {
+    float masterVolume;     
+    float musicVolume;      
+    float sfxVolume;        
+    int resolutionIndex;    
+    bool fullscreen;
+    GameLanguage language;
+} GameSettings;
+
+// --- STRUCTS DO JOGO (Player e Objetos de Combate) ---
+
 typedef struct Player {
+    char name[32];
     Vector2 position;
     Vector2 velocity;
     bool isGrounded;
@@ -50,12 +113,14 @@ typedef struct Player {
     int attackFrameCounter;
     Moveset *moves;
     Move *currentMove;
+    
     float health;
     float maxHealth;
     float currentHealth;
     int maxUlt;
     int currentUlt;
     int roundsWon;
+    float poisonTimer;
 
     bool isCPU;
     AIState aiState;
@@ -69,26 +134,54 @@ typedef struct HitboxNode {
     int lifetime;
     bool isPlayer1;
     struct HitboxNode *next;
+    
+    MoveEffect effect;
+    float effectDuration;
 } HitboxNode;
 
+typedef struct ProjectileNode {
+    Vector2 position;
+    Vector2 velocity;
+    Rectangle size;
+    float damage;
+    Vector2 knockback;
+    int lifetime;
+    bool isPlayer1;
+    struct ProjectileNode *next;
+    
+    bool spawnTrapOnGround;
+    float trapDuration;
+    
+    MoveEffect effect;
+    float effectDuration;
+} ProjectileNode;
+
+typedef struct TrapNode {
+    Rectangle area;
+    float damage;
+    float duration;
+    bool isPlayer1;
+    struct TrapNode *next;
+    
+    MoveEffect effect;
+} TrapNode;
+
+// --- PROTÓTIPOS DE FUNÇÕES ---
 void GameScene_Init(void);
 int GameScene_Update(void);
 void GameScene_Draw(void);
 void GameScene_Unload(void);
-void PlayerTakeDamage(Player *victim, float damage, Vector2 knockback);
+void GameScene_SetMultiplayer(bool enabled);
+void GameScene_SetFont(Font font);
 
-typedef enum {
-    LANG_EN,
-    LANG_PT
-} GameLanguage;
+// Sistema de Combate
+void Combat_Init(void);
+void Combat_Update(Player *p1, Player *p2);
+void Combat_Draw(void);
+void Combat_Cleanup(void);
+void Combat_TryExecuteMove(Player *player, Move *move, bool isPlayer1);
+void Combat_ApplyStatus(Player *player, float dt);
 
-typedef struct {
-    float masterVolume;     
-    float musicVolume;      
-    float sfxVolume;        
-    int resolutionIndex;    
-    bool fullscreen;
-    GameLanguage language;
-} GameSettings;
+Moveset* LoadMovesetFromJSON(const char *filename);
 
 #endif
