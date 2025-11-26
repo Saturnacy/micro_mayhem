@@ -106,6 +106,7 @@ typedef struct {
 typedef struct Player {
     char name[32];
     Vector2 position;
+    Vector2 ultLaunchPos;
     Vector2 velocity;
     bool isGrounded;
     bool isFlipped;
@@ -119,6 +120,9 @@ typedef struct Player {
     float currentHealth;
     int maxUlt;
     int currentUlt;
+    float ultCharge;
+    float maxUltCharge;
+    float chargePerPill;
     int roundsWon;
     float poisonTimer;
 
@@ -137,6 +141,7 @@ typedef struct HitboxNode {
     
     MoveEffect effect;
     float effectDuration;
+    MoveType moveType;
 } HitboxNode;
 
 typedef struct ProjectileNode {
@@ -154,6 +159,7 @@ typedef struct ProjectileNode {
     
     MoveEffect effect;
     float effectDuration;
+    MoveType moveType;
 } ProjectileNode;
 
 typedef struct TrapNode {
@@ -164,10 +170,11 @@ typedef struct TrapNode {
     struct TrapNode *next;
     
     MoveEffect effect;
+    MoveType moveType;
 } TrapNode;
 
 // --- PROTÓTIPOS DE FUNÇÕES ---
-void GameScene_Init(void);
+void GameScene_Init(int p1CharacterID, int p2CharacterID);
 int GameScene_Update(void);
 void GameScene_Draw(void);
 void GameScene_Unload(void);

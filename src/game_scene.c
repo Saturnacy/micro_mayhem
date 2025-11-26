@@ -32,6 +32,24 @@ static Texture2D texPillEmptyL, texPillFullL;
 static Texture2D texPillEmptyR, texPillFullR;
 static Texture2D texTabletActive, texTabletInactive;
 
+static const char* GetCharacterJSON(int charID) {
+    switch(charID) {
+        case 0: return "assets/data/bacteriophage.json";
+        case 1: return "assets/data/amoeba.json";
+        case 2: return "assets/data/tardigrade.json";
+        default: return "assets/data/bacteriophage.json";
+    }
+}
+
+static const char* GetCharacterName(int charID) {
+    switch(charID) {
+        case 0: return "BACTERIOPHAGE";
+        case 1: return "AMOEBA";
+        case 2: return "TARDIGRADE";
+        default: return "UNKNOWN";
+    }
+}
+
 static void UpdateHuman(Player *player, float dt, InputConfig input) {
     Combat_ApplyStatus(player, dt);
     bool isP1 = (player == player1);
@@ -61,8 +79,36 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
 
         if (move->type == MOVE_TYPE_ULTIMATE_FALL) {
             int totalFrames = move->startupFrames + move->activeFrames;
-            if (player->attackFrameCounter > totalFrames / 2) {
+            int peakFrame = 40;
+            int hangTime = 60;
+
+            if (player->attackFrameCounter == peakFrame) {
+                Move cloud = {0};
+                cloud.type = MOVE_TYPE_TRAP;
+                cloud.hitbox = (Rectangle){ -300, -300, 600, 600 }; 
+                
+                cloud.damage = 2.0f;
+                cloud.effect = EFFECT_POISON;
+                cloud.effectDuration = 5.0f;
+                cloud.trapDuration = 5.0f;
+
+                Vector2 currentPos = player->position;
+                player->position = player->ultLaunchPos;
+                
+                Combat_TryExecuteMove(player, &cloud, isP1);
+                
+                player->position = currentPos;
+            }
+
+            if (player->attackFrameCounter >= peakFrame && player->attackFrameCounter < (peakFrame + hangTime)) {
+                player->velocity.y = 0; 
+                player->velocity.x = 0;
+            }
+            else if (player->attackFrameCounter >= (peakFrame + hangTime)) {
                 player->velocity.y = move->fallSpeed;
+                
+                if (IsKeyDown(input.left))  player->position.x -= move->steerSpeed;
+                if (IsKeyDown(input.right)) player->position.x += move->steerSpeed;
             }
         }
         
@@ -70,6 +116,18 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
         
         if (player->position.y > 540) { 
              if (move->selfVelocity.y > 0 || move->fallSpeed > 0) {
+                 
+                 if (move->type == MOVE_TYPE_ULTIMATE_FALL) {
+                     Move explosion = {0};
+                     explosion.type = MOVE_TYPE_ULTIMATE; 
+                     explosion.hitbox = (Rectangle){ -200, -150, 400, 300 }; 
+                     explosion.damage = 40.0f;
+                     explosion.knockback = (Vector2){ 25.0f, -25.0f };
+                     explosion.activeFrames = 10;
+                     
+                     Combat_TryExecuteMove(player, &explosion, isP1);
+                 }
+
                  player->position.y = 540;
                  player->state = PLAYER_STATE_IDLE;
                  player->currentMove = NULL;
@@ -155,7 +213,16 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
             if (IsKeyDown(input.right)) player->isFlipped = false;
 
             if (isSpecial) {
-                selectedMove = movingSide ? &player->moves->specialSide : &player->moves->specialNeutral;
+                if (movingSide) {
+                    selectedMove = &player->moves->specialSide;
+                } else {
+                    if (player->currentUlt >= player->maxUlt) {
+                        selectedMove = &player->moves->ultimate;
+                        player->ultLaunchPos = player->position;
+                    } else {
+                        selectedMove = &player->moves->specialNeutral;
+                    }
+                }
             } else {
                 selectedMove = player->isGrounded ? (movingSide ? &player->moves->sideGround : &player->moves->neutralGround) 
                                                 : (movingSide ? &player->moves->airSide : &player->moves->airNeutral);
@@ -168,8 +235,15 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
                 return;
             }
             selectedMove->lastUsedTime = GetTime();
+            
             Combat_TryExecuteMove(player, selectedMove, isP1);
             player->currentMove = selectedMove;
+
+            if (selectedMove == &player->moves->ultimate) {
+                player->ultCharge = 0.0f;
+                player->currentUlt = 0;
+                printf("ULTIMATE ACTIVATED! Meter Reset.\n");
+            }
         }
     }
 }
@@ -342,7 +416,7 @@ void GameScene_SetFont(Font font) {
     hudFont = font;
 }
 
-void GameScene_Init(void) {
+void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     sceneState = SCENE_STATE_START;
     matchWinner = 0;
     countdownTimer = 0;
@@ -360,11 +434,14 @@ void GameScene_Init(void) {
     player1->currentHealth = 100.0f;
     player1->maxUlt = 8;
     player1->currentUlt = 0;
+    player1->chargePerPill = 100.0f;
+    player1->maxUltCharge = player1->maxUlt * player1->chargePerPill;
+    player1->ultCharge = 0.0f;
     player1->roundsWon = 0;
     player1->poisonTimer = 0;
     
-    player1->moves = LoadMovesetFromJSON("assets/data/bacteriophage.json");
-    TextCopy(player1->name, "BACTERIOPHAGE");
+    player1->moves = LoadMovesetFromJSON(GetCharacterJSON(p1CharacterID));
+    TextCopy(player1->name, GetCharacterName(p1CharacterID));
 
     player2 = (Player*)malloc(sizeof(Player));
     player2->position = (Vector2){ 800, 540 };
@@ -378,11 +455,14 @@ void GameScene_Init(void) {
     player2->currentHealth = 100.0f;
     player2->maxUlt = 8;
     player2->currentUlt = 0;
+    player2->chargePerPill = 100.0f; 
+    player2->maxUltCharge = player2->maxUlt * player2->chargePerPill;
+    player2->ultCharge = 0.0f;
     player2->roundsWon = 0;
     player2->poisonTimer = 0;
 
-    player2->moves = LoadMovesetFromJSON("assets/data/bacteriophage.json");
-    TextCopy(player2->name, "BACTERIOPHAGE");
+    player2->moves = LoadMovesetFromJSON(GetCharacterJSON(p2CharacterID));
+    TextCopy(player2->name, GetCharacterName(p2CharacterID));
 
     if (isMultiplayerMode) {
         player2->isCPU = false;
@@ -441,6 +521,18 @@ int GameScene_Update(void) {
             } else {
                 UpdateAI(player2, player1, dt);
             }
+
+            // DEBUG KEYS
+            if (IsKeyPressed(KEY_F2)) {
+                player1->ultCharge = player1->maxUltCharge;
+                player1->currentUlt = player1->maxUlt;
+                printf("DEBUG: Player 1 Ult Maxed\n");
+            }
+            if (IsKeyPressed(KEY_F3)) {
+                player1->roundsWon++;
+                if (player1->roundsWon > 3) player1->roundsWon = 3;
+                printf("DEBUG: Player 1 Rounds Won: %d\n", player1->roundsWon);
+            }
             
             Combat_Update(player1, player2);
 
@@ -463,7 +555,7 @@ int GameScene_Update(void) {
                 if (pauseOption < 0) pauseOption = 2;
             }
 
-            if (IsKeyPressed(KEY_ENTER)) {
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
                 if (pauseOption == 0) {
                     sceneState = SCENE_STATE_PLAY;
                 }
@@ -542,13 +634,56 @@ void GameScene_Draw(void) {
     float offPillXL = startX + (55 * uiScale);
     float offPillXR = startX + frameW - (55 * uiScale);
 
-    for (int i = 0; i < 8; i++) {
-        Texture2D tex = (i < player1->currentUlt) ? texPillFullL : texPillEmptyL;
-        DrawTextureEx(tex, (Vector2){ offPillXL + i * pillSpacing, offPillY }, 0, uiScale, WHITE);
+    for (int i = 0; i < player1->maxUlt; i++) {
+        Vector2 pos = { offPillXL + i * pillSpacing, offPillY };
+        
+        DrawTextureEx(texPillEmptyL, pos, 0, uiScale, WHITE);
+
+        float chargeNeededStart = i * player1->chargePerPill;
+        float chargeNeededEnd = (i + 1) * player1->chargePerPill;
+        
+        if (player1->ultCharge >= chargeNeededEnd) {
+            DrawTextureEx(texPillFullL, pos, 0, uiScale, WHITE);
+        } 
+        else if (player1->ultCharge > chargeNeededStart) {
+            float fillAmount = (player1->ultCharge - chargeNeededStart) / player1->chargePerPill;
+            
+            Rectangle source = { 0, 0, texPillFullL.width * fillAmount, (float)texPillFullL.height };
+            Rectangle dest = { pos.x, pos.y, (texPillFullL.width * uiScale) * fillAmount, texPillFullL.height * uiScale };
+            DrawTexturePro(texPillFullL, source, dest, (Vector2){0,0}, 0.0f, WHITE);
+        }
     }
-    for (int i = 0; i < 8; i++) {
-        Texture2D tex = (i < player2->currentUlt) ? texPillFullR : texPillEmptyR;
-        DrawTextureEx(tex, (Vector2){ offPillXR - ((i + 1) * pillSpacing), offPillY }, 0, uiScale, WHITE);
+
+    for (int i = 0; i < player2->maxUlt; i++) {
+        Vector2 pos = { offPillXR - ((i + 1) * pillSpacing), offPillY };
+        
+        DrawTextureEx(texPillEmptyR, pos, 0, uiScale, WHITE);
+
+        float chargeNeededStart = i * player2->chargePerPill;
+        float chargeNeededEnd = (i + 1) * player2->chargePerPill;
+
+        if (player2->ultCharge >= chargeNeededEnd) {
+            DrawTextureEx(texPillFullR, pos, 0, uiScale, WHITE);
+        } 
+        else if (player2->ultCharge > chargeNeededStart) {
+            float fillAmount = (player2->ultCharge - chargeNeededStart) / player2->chargePerPill;
+            Rectangle source = { 
+                texPillFullR.width * (1.0f - fillAmount),
+                0, 
+                texPillFullR.width * fillAmount, 
+                (float)texPillFullR.height 
+            };
+            
+            float drawnWidth = (texPillFullR.width * uiScale) * fillAmount;
+            Rectangle dest = { 
+                pos.x + (texPillFullR.width * uiScale) - drawnWidth,
+                pos.y, 
+                drawnWidth, 
+                texPillFullR.height * uiScale 
+            };
+            
+            DrawTexturePro(texPillFullR, source, dest, (Vector2){0,0}, 0.0f, WHITE);
+        }
     }
 
     float offTabletY = startY + (68 * uiScale);

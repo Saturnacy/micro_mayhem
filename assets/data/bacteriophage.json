@@ -112,15 +112,17 @@
       "trap_duration": 10.0,
       "cooldown": 15.0
     },
-    "ultimate": {
-      "name": "Orbital Bio-Nuke",
-      "damage": 35.0,
-      "startup": 40, "active": 120, "recovery": 60,
-      "knockback": { "x": 15.0, "y": -15.0 },
-      "hitbox": { "x": -150, "y": -100, "w": 300, "h": 200 },
+      "ultimate": {
+      "name": "Orbital Bio-Nuke (Launch)",
+      "damage": 5.0,
+      "startup": 40, 
+      "active": 120, 
+      "recovery": 60,
+      "knockback": { "x": 5.0, "y": -10.0 },
+      "hitbox": { "x": -20, "y": -40, "w": 40, "h": 80 },
       "type": "ULTIMATE_FALL",
       "self_velocity": { "x": 0.0, "y": -25.0 },
-      "steer_speed": 2.0,
+      "steer_speed": 4.0,
       "fall_speed": 30.0
     }
   }

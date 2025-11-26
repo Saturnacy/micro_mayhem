@@ -3,33 +3,35 @@
 #include <string.h>
 #include "raylib.h"
 
-Font LoadTitleFont(const char* fileName) {
+Font LoadGameFont(const char* fileName) {
     Texture2D fontTexture = LoadTexture(fileName);
 
     SetTextureFilter(fontTexture, TEXTURE_FILTER_POINT);
 
     Font font = { 0 };
     font.baseSize = 23;
-    font.glyphCount = 27; 
-    font.glyphPadding = 0;
     font.texture = fontTexture;
+
+    const char *charOrder = "ABCDEFGHIJKLMNOPQRSTUVWXYZ:1234567890?!";
+    
+    int totalGlyphs = strlen(charOrder) + 1;
+
+    font.glyphCount = totalGlyphs; 
+    font.glyphPadding = 0;
     font.recs = (Rectangle *)malloc(font.glyphCount * sizeof(Rectangle));
     font.glyphs = (GlyphInfo *)malloc(font.glyphCount * sizeof(GlyphInfo));
 
     int currentX = 0;
+    int gap = 6;
 
-    for (int i = 0; i < 26; i++) {
-        char letter = 'A' + i;
+    for (int i = 0; i < strlen(charOrder); i++) {
+        char letter = charOrder[i];
         
-        int width = 16;
-        int height = 21;
+        int width = 16;  
+        int height = 21; 
         int offsetY = 0;
 
-        if (letter == 'I') {
-            width = 4;
-        }
-
-        else if (letter == 'M' || letter == 'W') {
+        if (letter == 'M' || letter == 'W') {
             width = 20;
             height = 20;
             offsetY = 1;
@@ -39,8 +41,19 @@ Font LoadTitleFont(const char* fileName) {
             height = 20;
             offsetY = 1;
         }
+        else if (letter == '0' || letter == '2' || (letter >= '4' && letter <= '9')) {
+            width = 14;
+        }
+        else if (letter == '1') {
+            width = 12;
+        }
+        else if (letter == ':') {
+            width = 6;
+        }
+        else if (letter == 'I' || letter == '!') {
+            width = 4;
+        }
         else if (letter == 'Q') {
-            width = 16;
             height = 23;
         }
 
@@ -53,17 +66,17 @@ Font LoadTitleFont(const char* fileName) {
         font.glyphs[i].offsetX = 0;
         font.glyphs[i].offsetY = offsetY;
         font.glyphs[i].advanceX = width + 2;
-
         font.glyphs[i].image = (Image){ 0 }; 
 
-        currentX += width + 6;
+        currentX += width + gap;
     }
 
-    font.recs[26] = (Rectangle){ 0, 0, 0, 0 };
-    font.glyphs[26].value = 32;
-    font.glyphs[26].offsetX = 0;
-    font.glyphs[26].offsetY = 0;
-    font.glyphs[26].advanceX = 12;
+    int spaceIndex = strlen(charOrder);
+    font.recs[spaceIndex] = (Rectangle){ 0, 0, 0, 0 };
+    font.glyphs[spaceIndex].value = 32;
+    font.glyphs[spaceIndex].offsetX = 0;
+    font.glyphs[spaceIndex].offsetY = 0;
+    font.glyphs[spaceIndex].advanceX = 12;
 
     return font;
 }

@@ -3,7 +3,7 @@
 
 #include "raylib.h"
 
-Font LoadTitleFont(const char* fileName);
+Font LoadGameFont(const char* fileName);
 Font LoadMainFont(const char* fileName);
 
 #endif

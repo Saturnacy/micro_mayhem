@@ -10,6 +10,8 @@
 #define BG_COUNT 20
 #define UNIQUE_BG_COUNT 18
 #define SETTINGS_OPTIONS 8
+#define CHAR_COUNT 12
+#define CONFIG_FILE "game_settings.bin"
 
 typedef enum {
     STATE_SPLASH_FADE_IN,
@@ -19,6 +21,7 @@ typedef enum {
     STATE_TITLE_MM,
     STATE_MENU,
     STATE_QUICKPLAY_MENU,
+    STATE_CHARACTER_SELECT,
     STATE_SETTINGS,
     STATE_CREDITS,
     STATE_GAMEPLAY
@@ -45,6 +48,28 @@ void UnloadTexturesInLoop(Texture2D textures[], int count) {
 void DrawRadialBackground(int screenWidth, int screenHeight);
 void DrawInitialBackground(int screenWidth, int screenHeight, TitleBG *titleBGs, Texture2D mmLogo, float MMlogoScale);
 
+void SaveGameSettings(GameSettings *settings) {
+    FILE *file = fopen(CONFIG_FILE, "wb");
+    
+    if (file != NULL) {
+        fwrite(settings, sizeof(GameSettings), 1, file);
+        fclose(file);
+    } else {
+        printf("SETTINGS: Erro ao salvar configuracoes!\n");
+    }
+}
+
+void LoadGameSettings(GameSettings *settings) {
+    FILE *file = fopen(CONFIG_FILE, "rb");
+    
+    if (file != NULL) {
+        fread(settings, sizeof(GameSettings), 1, file);
+        fclose(file);
+    } else {
+        printf("SETTINGS: Arquivo de configuraçao nao encontrado. Usando padroes.\n");
+    }
+}
+
 const char *TitleBGPaths[UNIQUE_BG_COUNT] = {
     "assets/title_bg1.png", "assets/title_bg2.png", "assets/title_bg3.png", "assets/title_bg4.png",
     "assets/title_bg5.png", "assets/title_bg6.png", "assets/title_bg7.png", "assets/title_bg8.png",
@@ -52,6 +77,22 @@ const char *TitleBGPaths[UNIQUE_BG_COUNT] = {
     "assets/title_bg13.png", "assets/title_bg14.png", "assets/title_bg15.png", "assets/title_bg16.png",
     "assets/title_bg17.png", "assets/title_bg18.png"
 };
+
+bool isMultiplayer = false;
+const char* charNames[CHAR_COUNT] = { "BACTERIOPHAGE", "AMOEBA", "TARDIGRADE", "STENTOR", 
+                                        "PARAMECIUM", "EUGLENA", "NEMATODE", "ROTIFER",
+                                        "DINOFLAGELLATE", "DAPHNIA", "HYDRA", "ARCHEON" };
+int p1Selection = 0;
+int p2Selection = 0;
+bool isSelectingP2 = false;
+int inputDelayTimer = 0;
+
+int statsHP[CHAR_COUNT]    = { 0, 2, 2, 0, 0, 0, 0, 0, 0, 1, 2, 1 };
+int statsSTR[CHAR_COUNT]   = { 1, 1, 2, 2, 1, 1, 0, 1, 1, 1, 2, 0 };
+int statsSPD[CHAR_COUNT]   = { 2, 1, 0, 1, 2, 0, 1, 1, 0, 2, 1, 2 };
+
+const char* statLabels[] = { "LOW", "MED", "HIGH" };
+Color statColors[] = { RED, YELLOW, GREEN };
 
 int main(void) {
     // =========================================================
@@ -61,10 +102,29 @@ int main(void) {
     const int resHeights[] = { 720, 768, 1080 };
     int maxResolutions = 3;
     
-    int screenWidth = resWidths[0];
-    int screenHeight = resHeights[0];
+    GameSettings settings = { 
+        1.0f, 1.0f, 1.0f,
+        0,
+        false,
+        LANG_EN
+    };
+
+    LoadGameSettings(&settings);
+
+    if (settings.resolutionIndex < 0 || settings.resolutionIndex >= maxResolutions) {
+        settings.resolutionIndex = 0;
+    }
+    if (settings.masterVolume < 0) settings.masterVolume = 0.5f;
+
+    int screenWidth = resWidths[settings.resolutionIndex];
+    int screenHeight = resHeights[settings.resolutionIndex];
 
     InitWindow(screenWidth, screenHeight, "Micro Mayhem");
+    
+    if (settings.fullscreen) {
+        ToggleFullscreen();
+    }
+
     SetTargetFPS(60);
     
     Image icon = LoadImage("assets/exe_icon.png");
@@ -75,9 +135,15 @@ int main(void) {
     // =========================================================
     InitAudioDevice();
     
-    Music menuMusic = LoadMusicStream("assets/audio/menu_principal.ogg");
+    SetMasterVolume(settings.masterVolume);
+    
+    Music menuMusic = LoadMusicStream("assets/audio/main_menu.ogg");
     menuMusic.looping = true;
+    SetMusicVolume(menuMusic, settings.musicVolume); 
     bool isMenuMusicPlaying = false;
+
+    Music cssMusic = LoadMusicStream("assets/audio/css_music.ogg");
+    cssMusic.looping = true;
 
     // =========================================================
     // 3. SHADERS E RENDER TEXTURE (SISTEMA VISUAL)
@@ -106,9 +172,9 @@ int main(void) {
     Texture2D cesarLogo = LoadTexture("assets/cesar_logo.png");
     Texture2D mmLogo = LoadTexture("assets/title.png");
     
-    Font titleFont = LoadTitleFont("assets/title_font.png");
+    Font gameFont = LoadGameFont("assets/game_font.png");
     Font mainFont = LoadMainFont("assets/main_font.png");
-    GameScene_SetFont(titleFont);
+    GameScene_SetFont(gameFont);
 
     // =========================================================
     // 5. ASSETS: BACKGROUNDS (ARRAYS E CARREGAMENTO)
@@ -139,13 +205,25 @@ int main(void) {
         { uniqueTitleBGs[17], {0.78f, 0.72f}, 1.5f }, 
     };
 
+    Texture2D charSelectBg;
+    charSelectBg = LoadTexture("assets/css_bg.png"); 
+    SetTextureFilter(charSelectBg, TEXTURE_FILTER_POINT);
+
+    Texture2D charBoxTex;
+    charBoxTex = LoadTexture("assets/character_box.png");
+    SetTextureFilter(charBoxTex, TEXTURE_FILTER_POINT);
+
+    Texture2D infoBoxTex;
+    infoBoxTex = LoadTexture("assets/infobox.png");
+    SetTextureFilter(infoBoxTex, TEXTURE_FILTER_POINT);
+
     // =========================================================
     // 6. CONFIGURAÇÃO DE UI, TEXTO E ESCALAS
     // =========================================================
     const char *title_text = "PRESS ENTER TO BEGIN";
-    float fontSize = titleFont.baseSize * 1.5f; 
+    float fontSize = gameFont.baseSize * 1.5f; 
     float fontSpacing = 3.0f;
-    Vector2 textSize = MeasureTextEx(titleFont, title_text, fontSize, fontSpacing);
+    Vector2 textSize = MeasureTextEx(gameFont, title_text, fontSize, fontSpacing);
     Vector2 textPosition = {
         (1200 - textSize.x) / 2.0f,
         (720 / 1.65f) + 150
@@ -239,12 +317,6 @@ int main(void) {
     int frameCounter = 0;
     float fadeAlpha = 255.0f;
 
-    GameSettings settings = { 
-        1.0f, 1.0f, 1.0f,
-        0,
-        false,
-        LANG_EN
-    };
     SetMasterVolume(settings.masterVolume);
 
     // =========================================================
@@ -260,6 +332,10 @@ int main(void) {
         if (isMenuMusicPlaying) {
             SetMusicVolume(menuMusic, settings.musicVolume);
             UpdateMusicStream(menuMusic);
+        }
+        else if (currentState == STATE_CHARACTER_SELECT) {
+            SetMusicVolume(cssMusic, settings.musicVolume);
+            UpdateMusicStream(cssMusic);
         }
 
         switch (currentState) {
@@ -325,12 +401,12 @@ int main(void) {
                 break;
             
             case STATE_MENU:
-                if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+                if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
                     selectedOption++;
                     if (selectedOption >= MENU_OPTIONS) selectedOption = 0;
                 }
 
-                if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+                if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
                     selectedOption--;
                     if (selectedOption < 0) selectedOption = MENU_OPTIONS - 1;
                 }
@@ -369,23 +445,33 @@ int main(void) {
                 if (IsKeyPressed(KEY_ENTER)) {
                     switch (selectedOption) {
                         case 0:
+                            StopMusicStream(menuMusic);
+                            PlayMusicStream(cssMusic);
+                            isMenuMusicPlaying = false;
+
                             GameScene_SetMultiplayer(false);
-                            GameScene_Init();
-                            if (isMenuMusicPlaying) {
-                                StopMusicStream(menuMusic);
-                                isMenuMusicPlaying = false;
-                            }
-                            currentState = STATE_GAMEPLAY;
+                            isMultiplayer = false;
+                            
+                            currentState = STATE_CHARACTER_SELECT;
+                            p1Selection = 0;
+                            p2Selection = 1;
+                            isSelectingP2 = false;
+                            inputDelayTimer = 30;
                             break;
                             
                         case 1:
+                            StopMusicStream(menuMusic);
+                            PlayMusicStream(cssMusic);
+                            isMenuMusicPlaying = false;
+
                             GameScene_SetMultiplayer(true);
-                            GameScene_Init();
-                            if (isMenuMusicPlaying) {
-                                StopMusicStream(menuMusic);
-                                isMenuMusicPlaying = false;
-                            }
-                            currentState = STATE_GAMEPLAY;
+                            isMultiplayer = true;
+
+                            currentState = STATE_CHARACTER_SELECT;
+                            p1Selection = 0;
+                            p2Selection = 0;
+                            isSelectingP2 = false;
+                            inputDelayTimer = 30;
                             break;
                             
                         case 2:
@@ -393,6 +479,69 @@ int main(void) {
                             selectedOption = 0;
                             break;
                     }
+                }
+                break;
+
+                case STATE_CHARACTER_SELECT:
+                {
+
+                    if (inputDelayTimer > 0) {
+                        inputDelayTimer--;
+                    }
+
+                    if (isSelectingP2) {
+                        if (inputDelayTimer <= 0) {
+                            if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) p2Selection--;
+                            if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) p2Selection++;
+                            if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) p2Selection += 4;
+                            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) p2Selection -= 4;
+
+                            if (p2Selection < 0) p2Selection += CHAR_COUNT;
+                            if (p2Selection >= CHAR_COUNT) p2Selection -= CHAR_COUNT;
+
+                            if (IsKeyPressed(KEY_ENTER)) {
+                                StopMusicStream(cssMusic);
+                                GameScene_Init(p1Selection, p2Selection); 
+                                currentState = STATE_GAMEPLAY;
+                            }
+
+                            if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ESCAPE)) {
+                                isSelectingP2 = false; 
+                                inputDelayTimer = 15;
+                            }
+                        }
+                    }
+                
+                    else {
+                        if (inputDelayTimer <= 0) {
+                            if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) p1Selection--;
+                            if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) p1Selection++;
+                            if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) p1Selection += 4;
+                            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) p1Selection -= 4;
+
+                            if (p1Selection < 0) p1Selection += CHAR_COUNT;
+                            if (p1Selection >= CHAR_COUNT) p1Selection -= CHAR_COUNT;
+
+                            if (IsKeyPressed(KEY_ENTER)) {
+                                if (isMultiplayer) {
+                                    isSelectingP2 = true;
+                                    inputDelayTimer = 20;
+                                } else {
+                                    StopMusicStream(cssMusic);
+                                    GameScene_Init(p1Selection, 0); 
+                                    currentState = STATE_GAMEPLAY;
+                                }
+                            }
+
+                            if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ESCAPE)) {
+                                StopMusicStream(cssMusic);
+                                PlayMusicStream(menuMusic);
+                                isMenuMusicPlaying = true;
+                                currentState = STATE_QUICKPLAY_MENU;
+                            }
+                        }
+                    }
+
                 }
                 break;
             
@@ -440,16 +589,19 @@ int main(void) {
                 if (settings.sfxVolume < 0.0f) settings.sfxVolume = 0.0f;
                 
                 SetMasterVolume(settings.masterVolume);
+                if (isMenuMusicPlaying) SetMusicVolume(menuMusic, settings.musicVolume);
 
                 if (IsKeyPressed(KEY_ENTER)) {
                     if (selectedOption == 4) {
                         ToggleFullscreen();
                         settings.fullscreen = IsWindowFullscreen();
+                        SaveGameSettings(&settings);
                     }
                     else if (selectedOption == 6) {
                         currentState = STATE_CREDITS;
                     }
                     else if (selectedOption == 7) {
+                        SaveGameSettings(&settings);
                         currentState = STATE_MENU;
                         selectedOption = 3;
                     }
@@ -468,6 +620,11 @@ int main(void) {
                 if (gameResult == 1) {
                     currentState = STATE_QUICKPLAY_MENU;
                     selectedOption = 0;
+
+                    if (!isMenuMusicPlaying) {
+                        PlayMusicStream(menuMusic);
+                        isMenuMusicPlaying = true;
+                    }
                 }
                 break;
         }
@@ -518,6 +675,13 @@ int main(void) {
                     };
                     Vector2 origin = { 0.0f, 0.0f };
                     DrawTexturePro(mmLogo, sourceRec, destRec, origin, 0.0f, WHITE);
+
+                    if (currentState == STATE_TITLE_MM) {
+                        bool showText = fmod(GetTime(), 1.0) < 0.5;
+                        if (showText) {
+                            DrawTextEx(gameFont, title_text, textPosition, fontSize, fontSpacing, RAYWHITE);
+                        }
+                    }
                     break;
 
                 case STATE_MENU:
@@ -726,6 +890,132 @@ int main(void) {
                     }
                 }
                 break;
+
+                case STATE_CHARACTER_SELECT:
+                {
+                    Color bgTint = (Color){ 200, 200, 200, 255 }; 
+                    DrawTexturePro(charSelectBg, (Rectangle){0, 0, charSelectBg.width, charSelectBg.height}, (Rectangle){0, 0, 1200, 720}, (Vector2){0, 0}, 0.0f, bgTint);
+
+                    const char* title = "SELECT YOUR MICROBE";
+                    DrawTextEx(gameFont, title, (Vector2){(1200 - MeasureTextEx(gameFont, title, fontSizeTitle, fontSpacing).x)/2, 30}, fontSizeTitle, fontSpacing, WHITE);
+
+                    int columns = 4;
+                    int rows = 3;
+                    float boxSize = 100.0f;
+                    float spacing = 0.0f;
+                
+                    float gridWidth = (columns * boxSize) + ((columns - 1) * spacing);
+                    float gridHeight = (rows * boxSize) + ((rows - 1) * spacing);
+                
+                    float startX = (1200 - gridWidth) / 2.0f;
+                    float startY = (720 - gridHeight) / 2.0f;
+
+                    for (int i = 0; i < CHAR_COUNT; i++) {
+                        int col = i % columns;
+                        int row = i / columns;
+
+                        float drawX = startX + col * (boxSize + spacing);
+                        float drawY = startY + row * (boxSize + spacing);
+                        Rectangle boxRect = { drawX, drawY, boxSize, boxSize };
+
+                        DrawTexturePro(charBoxTex, 
+                            (Rectangle){0, 0, charBoxTex.width, charBoxTex.height}, 
+                            boxRect, (Vector2){0,0}, 0.0f, WHITE);
+
+                        DrawRectangle(drawX + 10, drawY + 10, boxSize - 20, boxSize - 20, (Color){0, 0, 0, 100});
+
+                        if (i == p1Selection) {
+                            DrawRectangleLinesEx(boxRect, 4.0f, RED);
+                            if ((int)(GetTime() * 10) % 2 == 0) {
+                                DrawRectangleLinesEx((Rectangle){drawX-4, drawY-4, boxSize+8, boxSize+8}, 2.0f, YELLOW);
+                            }
+                        }
+
+                        bool showP2 = isSelectingP2 || (isMultiplayer && !isSelectingP2); 
+                        if (showP2 && i == p2Selection) {
+                            float offset = (i == p1Selection) ? 4.0f : 0.0f;
+                            DrawRectangleLinesEx((Rectangle){drawX + offset, drawY + offset, boxSize - (offset*2), boxSize - (offset*2)}, 4.0f, BLUE);
+                        }
+                    }
+
+                    float nameBoxW = 300;
+                    float nameBoxH = 60;
+                    float roundness = 0.5f;
+                    int segments = 10;
+                
+                    float infoBoxW = 340; 
+                    float infoBoxH = 190;
+                    float infoBoxX = 40;  
+                    float infoBoxY = 490; 
+
+                    Rectangle infoDestRec = { infoBoxX, infoBoxY, infoBoxW, infoBoxH };
+
+                    DrawTexturePro(infoBoxTex, 
+                        (Rectangle){0, 0, infoBoxTex.width, infoBoxTex.height}, 
+                        infoDestRec, (Vector2){0,0}, 0.0f, WHITE);
+
+                    float textLeftMargin = infoBoxX + 25;
+                    float textTopMargin = infoBoxY + 20;
+                
+                    const char* p1Txt = charNames[p1Selection];
+                
+                    float nameFontSize = gameFont.baseSize; 
+                
+                    DrawTextEx(gameFont, p1Txt, (Vector2){textLeftMargin, textTopMargin}, nameFontSize, fontSpacing, WHITE);
+
+                    float statsStartY = textTopMargin + 45; 
+                    float lineHeight = 30.0f;               
+
+                    float valueOffsetX = 160.0f; 
+
+                    int hpVal = statsHP[p1Selection];
+                    DrawTextEx(gameFont, "HP:", (Vector2){textLeftMargin, statsStartY}, nameFontSize, fontSpacing, WHITE);
+                    DrawTextEx(gameFont, statLabels[hpVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY}, nameFontSize, fontSpacing, statColors[hpVal]);
+
+                    int strVal = statsSTR[p1Selection];
+                    DrawTextEx(gameFont, "STR:", (Vector2){textLeftMargin, statsStartY + lineHeight}, nameFontSize, fontSpacing, WHITE);
+                    DrawTextEx(gameFont, statLabels[strVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY + lineHeight}, nameFontSize, fontSpacing, statColors[strVal]);
+
+                    int spdVal = statsSPD[p1Selection];
+                    DrawTextEx(gameFont, "SPD:", (Vector2){textLeftMargin, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, WHITE);
+                    DrawTextEx(gameFont, statLabels[spdVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, statColors[spdVal]);
+
+                    DrawTextEx(gameFont, "P1", (Vector2){infoBoxX + infoBoxW - 40, infoBoxY + infoBoxH - 30}, 23, fontSpacing, RED);
+
+                    if (isSelectingP2 || isMultiplayer) {
+                        float p2BoxX = 1200 - infoBoxX - infoBoxW; 
+                        Rectangle p2DestRec = { p2BoxX, infoBoxY, infoBoxW, infoBoxH };
+                        
+                        Color p2Tint = isSelectingP2 ? WHITE : GRAY;
+                        
+                        DrawTexturePro(infoBoxTex, (Rectangle){0, 0, infoBoxTex.width, infoBoxTex.height}, p2DestRec, (Vector2){0,0}, 0.0f, p2Tint);
+
+                        float p2TextLeftMargin = p2BoxX + 25;
+
+                        const char* p2Txt = charNames[p2Selection];
+                        DrawTextEx(gameFont, p2Txt, (Vector2){p2TextLeftMargin, textTopMargin}, nameFontSize, fontSpacing, WHITE);
+
+                        int hpValP2 = statsHP[p2Selection];
+                        int strValP2 = statsSTR[p2Selection];
+                        int spdValP2 = statsSPD[p2Selection];
+
+                        DrawTextEx(gameFont, "HP:", (Vector2){p2TextLeftMargin, statsStartY}, nameFontSize, fontSpacing, WHITE);
+                        DrawTextEx(gameFont, statLabels[hpValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY}, nameFontSize, fontSpacing, statColors[hpValP2]);
+
+                        DrawTextEx(gameFont, "STR:", (Vector2){p2TextLeftMargin, statsStartY + lineHeight}, nameFontSize, fontSpacing, WHITE);
+                        DrawTextEx(gameFont, statLabels[strValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + lineHeight}, nameFontSize, fontSpacing, statColors[strValP2]);
+
+                        DrawTextEx(gameFont, "SPD:", (Vector2){p2TextLeftMargin, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, WHITE);
+                        DrawTextEx(gameFont, statLabels[spdValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, statColors[spdValP2]);
+                    
+                        DrawTextEx(gameFont, "P2", (Vector2){p2BoxX + infoBoxW - 40, infoBoxY + infoBoxH - 30}, 23, fontSpacing, BLUE);
+                    }
+                        
+                    const char* instr = isSelectingP2 ? "P2: CHOOSE CHARACTER" : "P1: CHOOSE CHARACTER";
+                    DrawTextEx(gameFont, instr, (Vector2){(1200 - MeasureTextEx(gameFont, instr, fontSizeSmall, fontSpacing).x)/2, 690}, fontSizeSmall, fontSpacing, YELLOW);
+                    
+                }   
+                break;
                 
                 case STATE_GAMEPLAY:
                     GameScene_Draw();
@@ -752,16 +1042,11 @@ int main(void) {
                 DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), (Color){ 0, 0, 0, (unsigned char)fadeAlpha });
             }
 
-            if (currentState == STATE_TITLE_MM) {
-                bool showText = fmod(GetTime(), 1.0) < 0.5;
-                if (showText) {
-                    DrawTextEx(titleFont, title_text, textPosition, fontSize, fontSpacing, RAYWHITE);
-                }
-            }
-
         EndDrawing();
     }
     
+    SaveGameSettings(&settings);
+
     GameScene_Unload();
     
     UnloadTexturesInLoop(uniqueTitleBGs, UNIQUE_BG_COUNT);
@@ -770,6 +1055,11 @@ int main(void) {
     UnloadShader(gradientShader);
     UnloadTexture(mmLogo);
     UnloadTexture(cesarLogo);
+    UnloadTexture(charSelectBg);
+    UnloadTexture(charBoxTex);
+    UnloadTexture(infoBoxTex);
+    UnloadFont(mainFont);
+    UnloadFont(gameFont);
     UnloadImage(icon);
 
     for (int i = 0; i < MENU_OPTIONS; i++) {
@@ -781,6 +1071,9 @@ int main(void) {
 
     StopMusicStream(menuMusic);
     UnloadMusicStream(menuMusic);
+    StopMusicStream(cssMusic);
+    UnloadMusicStream(cssMusic);
+
     CloseAudioDevice();
     CloseWindow();
 
@@ -806,21 +1099,30 @@ void DrawInitialBackground(int screenWidth, int screenHeight, TitleBG *titleBGs,
     float thickness = 4.0f;
     Color lineColor = (Color){ 52, 62, 102, 255 };
 
-    DrawLineEx((Vector2){screenWidth * 0.088f, screenHeight * 0.09f}, (Vector2){screenWidth * 0.088f, screenHeight * 0.6f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.088f, screenHeight * 0.6f}, (Vector2){screenWidth * 0.159f, screenHeight * 0.6f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.29f, screenHeight * 0.91f}, (Vector2){screenWidth * 0.72f, screenHeight * 0.91f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.265f, screenHeight * 0.09f}, (Vector2){screenWidth * 0.84f, screenHeight * 0.09f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.84f, screenHeight * 0.09f}, (Vector2){screenWidth * 0.84f, screenHeight * 0.2f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.912f, screenHeight * 0.55f}, (Vector2){screenWidth * 0.912f, screenHeight * 0.91f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.83f, screenHeight * 0.55f}, (Vector2){screenWidth * 0.912f, screenHeight * 0.55f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.24f, screenHeight * 0.55f}, (Vector2){screenWidth * 0.24f, screenHeight * 0.76f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.3f, screenHeight * 0.26f}, (Vector2){screenWidth * 0.38f, screenHeight * 0.26f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.46f, screenHeight * 0.15f}, (Vector2){screenWidth * 0.46f, screenHeight * 0.21f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.37f, screenHeight * 0.15f}, (Vector2){screenWidth * 0.46f, screenHeight * 0.15f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.53f, screenHeight * 0.79f}, (Vector2){screenWidth * 0.53f, screenHeight * 0.83f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.53f, screenHeight * 0.83f}, (Vector2){screenWidth * 0.59f, screenHeight * 0.83f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.73f, screenHeight * 0.25f}, (Vector2){screenWidth * 0.73f, screenHeight * 0.41f}, thickness, lineColor);
-    DrawLineEx((Vector2){screenWidth * 0.64f, screenHeight * 0.25f}, (Vector2){screenWidth * 0.73f, screenHeight * 0.25f}, thickness, lineColor);
+    float bgLines[15][4] = {
+        {0.088f, 0.09f, 0.088f, 0.60f},
+        {0.088f, 0.60f, 0.159f, 0.60f},
+        {0.290f, 0.91f, 0.720f, 0.91f},
+        {0.265f, 0.09f, 0.840f, 0.09f},
+        {0.840f, 0.09f, 0.840f, 0.20f},
+        {0.912f, 0.55f, 0.912f, 0.91f},
+        {0.830f, 0.55f, 0.912f, 0.55f},
+        {0.240f, 0.55f, 0.240f, 0.76f},
+        {0.300f, 0.26f, 0.380f, 0.26f},
+        {0.460f, 0.15f, 0.460f, 0.21f},
+        {0.370f, 0.15f, 0.460f, 0.15f},
+        {0.530f, 0.79f, 0.530f, 0.83f},
+        {0.530f, 0.83f, 0.590f, 0.83f},
+        {0.730f, 0.25f, 0.730f, 0.41f},
+        {0.640f, 0.25f, 0.730f, 0.25f}
+    };
+
+    for (int i = 0; i < 15; i++) {
+        Vector2 startPos = { screenWidth * bgLines[i][0], screenHeight * bgLines[i][1] };
+        Vector2 endPos   = { screenWidth * bgLines[i][2], screenHeight * bgLines[i][3] };
+    
+        DrawLineEx(startPos, endPos, thickness, lineColor);
+    }
 
     for (int i = 0; i < BG_COUNT; i++) {
         Texture2D tex = titleBGs[i].texture;
