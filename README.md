@@ -48,7 +48,6 @@ Cada personagem possui habilidades únicas e um estilo próprio de movimentaçã
 - **C**
 - **Raylib** (motor gráfico e interface)
 - **cJSON** (manipulação de arquivos JSON)
-- **UTHash** (estruturas de dados otimizadas)
 - **CMake** (build system)
 
 ---
