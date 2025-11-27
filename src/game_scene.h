@@ -5,6 +5,7 @@
 
 #define GAME_WIDTH 1200
 #define GAME_HEIGHT 720
+#define GROUND_LEVEL 640.0f
 
 // --- ENUMS ---
 
@@ -104,6 +105,16 @@ typedef struct {
 // --- STRUCTS DO JOGO (Player e Objetos de Combate) ---
 
 typedef struct Player {
+    Texture2D spriteSheet;
+    int frameWidth;
+    int frameHeight;
+    int currentAnimIndex;
+    int animStartFrame;
+    int animLength;
+    float vfxSpawnTimer;
+    float animTimer;
+    float animSpeed;
+    bool loopAnim;
     char name[32];
     Vector2 position;
     Vector2 ultLaunchPos;
@@ -125,6 +136,7 @@ typedef struct Player {
     float chargePerPill;
     int roundsWon;
     float poisonTimer;
+    bool hasUsedAirSpecial;
 
     bool isCPU;
     AIState aiState;
@@ -138,6 +150,8 @@ typedef struct HitboxNode {
     int lifetime;
     bool isPlayer1;
     struct HitboxNode *next;
+    float relX; 
+    float relY;
     
     MoveEffect effect;
     float effectDuration;
@@ -180,11 +194,13 @@ void GameScene_Draw(void);
 void GameScene_Unload(void);
 void GameScene_SetMultiplayer(bool enabled);
 void GameScene_SetFont(Font font);
+void GameScene_SetMainFont(Font font);
+void GameScene_SetLanguage(int lang);
 
 // Sistema de Combate
 void Combat_Init(void);
 void Combat_Update(Player *p1, Player *p2);
-void Combat_Draw(void);
+void Combat_Draw(Texture2D poisonTex);
 void Combat_Cleanup(void);
 void Combat_TryExecuteMove(Player *player, Move *move, bool isPlayer1);
 void Combat_ApplyStatus(Player *player, float dt);

@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define BODY_WIDTH 50.0f
+#define BODY_HEIGHT 90.0f
+
 static HitboxNode *activeHitboxes = NULL;
 static ProjectileNode *activeProjectiles = NULL;
 static TrapNode *activeTraps = NULL;
@@ -12,15 +15,23 @@ static void SpawnHitbox(Player *attacker, Move *move, bool isPlayer1) {
     if (!newNode) return;
 
     Rectangle hitboxRect = move->hitbox;
-    if (attacker->isFlipped) hitboxRect.x = -hitboxRect.x - hitboxRect.width; 
+    
+    float offsetX = attacker->isFlipped ? (-hitboxRect.x - hitboxRect.width) : hitboxRect.x;
+    
+    newNode->relX = offsetX;
+    newNode->relY = hitboxRect.y;
 
-    newNode->size = (Rectangle){ attacker->position.x + hitboxRect.x, attacker->position.y + hitboxRect.y, hitboxRect.width, hitboxRect.height };
+    newNode->size = (Rectangle){ 
+        attacker->position.x + newNode->relX, 
+        attacker->position.y + newNode->relY, 
+        hitboxRect.width, 
+        hitboxRect.height 
+    };
+
     newNode->damage = move->damage;
     newNode->knockback = move->knockback;
     newNode->lifetime = move->activeFrames;
-    
     newNode->isPlayer1 = isPlayer1; 
-    
     newNode->effect = move->effect;
     newNode->effectDuration = move->effectDuration;
     newNode->moveType = move->type;
@@ -78,9 +89,7 @@ void Combat_TryExecuteMove(Player *player, Move *move, bool isPlayer1) {
             Rectangle trapRect = move->hitbox;
             float dir = player->isFlipped ? -1.0f : 1.0f;
             float offsetX = player->isFlipped ? (-trapRect.x - trapRect.width) : trapRect.x;
-            
-            Vector2 pos = { player->position.x + offsetX, 540.0f - trapRect.height }; 
-            
+            Vector2 pos = { player->position.x + offsetX, GROUND_LEVEL - trapRect.height }; 
             SpawnTrap(pos, trapRect, move->damage, move->trapDuration * 60, isPlayer1, move->effect, move->type);
         } else {
             SpawnProjectile(player, move, isPlayer1);
@@ -110,12 +119,12 @@ void Combat_Update(Player *p1, Player *p2) {
         proj->lifetime--;
 
         bool hitGround = false;
-        if (proj->spawnTrapOnGround && proj->position.y >= 540 - proj->size.height) {
+        if (proj->spawnTrapOnGround && proj->position.y >= GROUND_LEVEL - proj->size.height) {
             hitGround = true;
             SpawnTrap(proj->position, proj->size, proj->damage, proj->trapDuration, proj->isPlayer1, proj->effect, proj->moveType);
         }
 
-        if (proj->lifetime <= 0 || hitGround || proj->position.x < -200 || proj->position.x > 1400) {
+        if (proj->lifetime <= 0 || hitGround || proj->position.x < -200 || proj->position.x > GAME_WIDTH + 200) {
             ProjectileNode *toFree = proj;
             if (prevProj) prevProj->next = proj->next; else activeProjectiles = proj->next;
             proj = proj->next;
@@ -145,7 +154,26 @@ void Combat_Update(Player *p1, Player *p2) {
     HitboxNode *prevHb = NULL;
     while (hb != NULL) {
         hb->lifetime--;
-        if (hb->lifetime <= 0) {
+
+        Player *owner = hb->isPlayer1 ? p1 : p2;
+        
+        hb->size.x = owner->position.x + hb->relX;
+        hb->size.y = owner->position.y + hb->relY;
+
+        if (hb->size.x < 0) {
+            hb->size.width += hb->size.x;
+            hb->size.x = 0;
+        }
+
+        if (hb->size.x + hb->size.width > GAME_WIDTH) {
+            hb->size.width = GAME_WIDTH - hb->size.x;
+        }
+
+        if (hb->size.y + hb->size.height > GROUND_LEVEL) {
+            hb->size.height = GROUND_LEVEL - hb->size.y;
+        }
+
+        if (hb->lifetime <= 0 || hb->size.width <= 0 || hb->size.height <= 0) {
             HitboxNode *toFree = hb;
             if (prevHb) prevHb->next = hb->next; else activeHitboxes = hb->next;
             hb = hb->next;
@@ -156,17 +184,26 @@ void Combat_Update(Player *p1, Player *p2) {
         }
     }
 
-    Rectangle body1 = { p1->position.x - 20, p1->position.y, 40, 60 };
-    Rectangle body2 = { p2->position.x - 20, p2->position.y, 40, 60 };
+    Rectangle body1 = { 
+        p1->position.x - (BODY_WIDTH/2), 
+        p1->position.y - BODY_HEIGHT, 
+        BODY_WIDTH, 
+        BODY_HEIGHT 
+    };
+    Rectangle body2 = { 
+        p2->position.x - (BODY_WIDTH/2), 
+        p2->position.y - BODY_HEIGHT, 
+        BODY_WIDTH, 
+        BODY_HEIGHT 
+    };
 
     proj = activeProjectiles;
     prevProj = NULL;
     while (proj != NULL) {
         Player *victim = proj->isPlayer1 ? p2 : p1;
         Rectangle victimBody = proj->isPlayer1 ? body2 : body1;
-        bool hit = CheckCollisionRecs((Rectangle){proj->position.x, proj->position.y, proj->size.width, proj->size.height}, victimBody);
         
-        if (hit) {
+        if (CheckCollisionRecs((Rectangle){proj->position.x, proj->position.y, proj->size.width, proj->size.height}, victimBody)) {
             victim->currentHealth -= proj->damage;
 
             if (proj->moveType != MOVE_TYPE_ULTIMATE && proj->moveType != MOVE_TYPE_ULTIMATE_FALL) {
@@ -175,8 +212,8 @@ void Combat_Update(Player *p1, Player *p2) {
             
                 Player *attacker = proj->isPlayer1 ? p1 : p2;
                 attacker->ultCharge += gainAttacker;
-
                 victim->ultCharge += gainVictim;
+                
                 if (attacker->ultCharge > attacker->maxUltCharge) attacker->ultCharge = attacker->maxUltCharge;
                 if (victim->ultCharge > victim->maxUltCharge) victim->ultCharge = victim->maxUltCharge;
 
@@ -194,7 +231,7 @@ void Combat_Update(Player *p1, Player *p2) {
         }
     }
 
-hb = activeHitboxes;
+    hb = activeHitboxes;
     prevHb = NULL;
     while (hb != NULL) {
         Player *victim = hb->isPlayer1 ? p2 : p1;
@@ -221,10 +258,18 @@ hb = activeHitboxes;
             
             float kbDir = (p1->position.x < p2->position.x) ? 1.0f : -1.0f;
             if (!hb->isPlayer1) kbDir *= -1;
+
+            victim->velocity.x = hb->knockback.x * kbDir;
+
+            if (!attacker->isGrounded && attacker->position.y < victim->position.y - 30.0f) {
+                victim->velocity.y = fabs(hb->knockback.y);
+            } 
+            else {
+                victim->velocity.y = hb->knockback.y;
+            }
             
-            victim->velocity.x += hb->knockback.x * kbDir;
-            victim->velocity.y -= hb->knockback.y;
             victim->state = PLAYER_STATE_HURT;
+            victim->attackFrameCounter = 30; 
 
             HitboxNode *toFree = hb;
             if (prevHb) prevHb->next = hb->next; else activeHitboxes = hb->next;
@@ -257,17 +302,47 @@ void Combat_ApplyStatus(Player *player, float dt) {
     }
 }
 
-void Combat_Draw(void) {
+void Combat_Draw(Texture2D poisonTex) {
+
+    int totalFrames = 6;
+    int currentFrame = (int)(GetTime() * 10.0f) % totalFrames;
+    
+    float frameW = (float)poisonTex.width / totalFrames;
+    float frameH = (float)poisonTex.height;
+
+    Rectangle sourceRec = {
+        currentFrame * frameW,
+        0.0f,
+        frameW,
+        frameH
+    };
+
     for (TrapNode *t = activeTraps; t != NULL; t = t->next) {
         if (t->effect == EFFECT_POISON) {
-            Color cloudColor = (Color){ 50, 255, 50, 100 };
-            Color outlineColor = (Color){ 20, 180, 20, 200 };
             
-            float radius = t->area.width / 2.0f;
-            Vector2 center = { t->area.x + radius, t->area.y + t->area.height / 2.0f };
+            Color cloudColor;
             
-            DrawCircleV(center, radius, cloudColor);
-            DrawCircleLines(center.x, center.y, radius, outlineColor);
+            Color purpleBase = (Color){ 180, 60, 255, 255 }; 
+            
+            if (t->moveType == MOVE_TYPE_TRAP) { 
+                cloudColor = Fade(purpleBase, 0.8f);
+            } 
+            else {
+                cloudColor = Fade(purpleBase, 0.6f);
+            }
+            float drawWidth = t->area.width * 1.2f;
+            float drawHeight = t->area.height * 1.2f;
+
+            Rectangle destRec = {
+                t->area.x + (t->area.width / 2.0f),
+                t->area.y + (t->area.height / 2.0f),
+                drawWidth,
+                drawHeight
+            };
+            
+            Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
+
+            DrawTexturePro(poisonTex, sourceRec, destRec, origin, 0.0f, cloudColor);
         } 
         else {
             Color trapColor = (Color){ 100, 0, 200, 100 };
@@ -280,11 +355,9 @@ void Combat_Draw(void) {
         DrawRectangle(p->position.x, p->position.y, p->size.width, p->size.height, YELLOW);
     }
 
-    // Desenha Hitbox (Debug)
     for (HitboxNode *h = activeHitboxes; h != NULL; h = h->next) {
         DrawRectangleLinesEx(h->size, 2, RED);
     }
-
 }
 
 void Combat_Cleanup(void) {

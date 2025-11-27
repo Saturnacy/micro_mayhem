@@ -60,7 +60,7 @@
       "knockback": { "x": 1.0, "y": 4.0 },
       "hitbox": { "x": 5, "y": 20, "w": 30, "h": 40 },
       "multi_hit": true,
-      "self_velocity": { "x": 0.0, "y": 15.0 },
+      "self_velocity": { "x": 7.5, "y": 7.5 },
       "steer_speed": 3.0
     },
     "air_neutral": {

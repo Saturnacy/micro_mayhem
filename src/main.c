@@ -24,7 +24,8 @@ typedef enum {
     STATE_CHARACTER_SELECT,
     STATE_SETTINGS,
     STATE_CREDITS,
-    STATE_GAMEPLAY
+    STATE_GAMEPLAY,
+    STATE_DEMO_LOCK
 } GameState;
 
 typedef struct {
@@ -145,6 +146,9 @@ int main(void) {
     Music cssMusic = LoadMusicStream("assets/audio/css_music.ogg");
     cssMusic.looping = true;
 
+    Music fightMusic = LoadMusicStream("assets/audio/fight.ogg");
+    fightMusic.looping = true;
+
     // =========================================================
     // 3. SHADERS E RENDER TEXTURE (SISTEMA VISUAL)
     // =========================================================
@@ -175,6 +179,7 @@ int main(void) {
     Font gameFont = LoadGameFont("assets/game_font.png");
     Font mainFont = LoadMainFont("assets/main_font.png");
     GameScene_SetFont(gameFont);
+    GameScene_SetMainFont(mainFont);
 
     // =========================================================
     // 5. ASSETS: BACKGROUNDS (ARRAYS E CARREGAMENTO)
@@ -209,13 +214,20 @@ int main(void) {
     charSelectBg = LoadTexture("assets/css_bg.png"); 
     SetTextureFilter(charSelectBg, TEXTURE_FILTER_POINT);
 
+    static Texture2D texBackground;
+
     Texture2D charBoxTex;
     charBoxTex = LoadTexture("assets/character_box.png");
     SetTextureFilter(charBoxTex, TEXTURE_FILTER_POINT);
 
+    Texture2D lockedBoxTex = LoadTexture("assets/locked_character_box.png");
+    SetTextureFilter(lockedBoxTex, TEXTURE_FILTER_POINT);
+
     Texture2D infoBoxTex;
     infoBoxTex = LoadTexture("assets/infobox.png");
     SetTextureFilter(infoBoxTex, TEXTURE_FILTER_POINT);
+
+    Texture2D boxArtTex = LoadTexture("assets/boxart.png");
 
     // =========================================================
     // 6. CONFIGURAÇÃO DE UI, TEXTO E ESCALAS
@@ -239,7 +251,29 @@ int main(void) {
     float fontSizeSmall = mainFont.baseSize * scaleSmall;
     
     float CESARlogoscale = 2.0f;
-    float MMlogoScale = 2.0f; 
+    float MMlogoScale = 2.0f;
+
+    const char* demo_lock_pt = 
+        "Compre uma cópia oficial de Micro Mayhem para\naproveitar tudo!\n\n"
+        "+ 10 personagens únicos!\n"
+        "+ 1 modo história (arcade)!\n"
+        "+ Extras (arte conceitual e galeria!)\n"
+        "+ Configurações mais ambiciosas!\n"
+        "+ CPU melhorada!\n"
+        "+ Novos microambientes!\n"
+        "+ MUITO MAIS!\n\n"
+        "Por enquanto, esse recurso não está\ndisponível na demo!";
+
+    const char* demo_lock_en = 
+        "Buy an official copy of Micro Mayhem to\nenjoy everything!\n\n"
+        "+ 10 unique characters!\n"
+        "+ 1 Story Mode (Arcade)!\n"
+        "+ Extras (Concept Art & Gallery!)\n"
+        "+ More ambitious settings!\n"
+        "+ Improved CPU AI!\n"
+        "+ New Micro-Environments!\n"
+        "+ MUCH MORE!\n\n"
+        "For now, this feature is not available\nin the demo!";
 
     // =========================================================
     // 7. DADOS DO MENU PRINCIPAL (TEXTOS E ÍCONES)
@@ -312,6 +346,7 @@ int main(void) {
     // 9. ESTADO GLOBAL DO JOGO E SETTINGS
     // =========================================================
     GameState currentState = STATE_SPLASH_FADE_IN;
+    GameState returnState = STATE_MENU;
     bool running = true;
     
     int frameCounter = 0;
@@ -336,6 +371,10 @@ int main(void) {
         else if (currentState == STATE_CHARACTER_SELECT) {
             SetMusicVolume(cssMusic, settings.musicVolume);
             UpdateMusicStream(cssMusic);
+        }
+        else if (currentState == STATE_GAMEPLAY) {
+            SetMusicVolume(fightMusic, settings.musicVolume);
+            UpdateMusicStream(fightMusic);
         }
 
         switch (currentState) {
@@ -418,10 +457,15 @@ int main(void) {
                             selectedOption = 0;
                             break;
                         case 1:
+                            returnState = STATE_MENU;
+                            currentState = STATE_DEMO_LOCK;
                             break;
                         case 2:
+                            returnState = STATE_MENU;
+                            currentState = STATE_DEMO_LOCK;
                             break;
                         case 3:
+                            returnState = STATE_MENU;
                             currentState = STATE_SETTINGS;
                             selectedOption = 0;
                             break;
@@ -484,7 +528,6 @@ int main(void) {
 
                 case STATE_CHARACTER_SELECT:
                 {
-
                     if (inputDelayTimer > 0) {
                         inputDelayTimer--;
                     }
@@ -500,9 +543,18 @@ int main(void) {
                             if (p2Selection >= CHAR_COUNT) p2Selection -= CHAR_COUNT;
 
                             if (IsKeyPressed(KEY_ENTER)) {
-                                StopMusicStream(cssMusic);
-                                GameScene_Init(p1Selection, p2Selection); 
-                                currentState = STATE_GAMEPLAY;
+                                if (p2Selection > 1) {
+                                    returnState = STATE_CHARACTER_SELECT; 
+                                    currentState = STATE_DEMO_LOCK; 
+                                } else {
+                                    StopMusicStream(cssMusic);
+                                    
+                                    PlayMusicStream(fightMusic);
+                                    
+                                    GameScene_SetLanguage(settings.language);
+                                    GameScene_Init(p1Selection, p2Selection); 
+                                    currentState = STATE_GAMEPLAY;
+                                }
                             }
 
                             if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ESCAPE)) {
@@ -523,13 +575,23 @@ int main(void) {
                             if (p1Selection >= CHAR_COUNT) p1Selection -= CHAR_COUNT;
 
                             if (IsKeyPressed(KEY_ENTER)) {
-                                if (isMultiplayer) {
-                                    isSelectingP2 = true;
-                                    inputDelayTimer = 20;
-                                } else {
-                                    StopMusicStream(cssMusic);
-                                    GameScene_Init(p1Selection, 0); 
-                                    currentState = STATE_GAMEPLAY;
+                                if (p1Selection > 1) {
+                                    returnState = STATE_CHARACTER_SELECT;
+                                    currentState = STATE_DEMO_LOCK;
+                                } 
+                                else {
+                                    if (isMultiplayer) {
+                                        isSelectingP2 = true;
+                                        inputDelayTimer = 20;
+                                    } else {
+                                        StopMusicStream(cssMusic);
+                                        
+                                        PlayMusicStream(fightMusic);
+                                        
+                                        GameScene_SetLanguage(settings.language);
+                                        GameScene_Init(p1Selection, 0); 
+                                        currentState = STATE_GAMEPLAY;
+                                    }
                                 }
                             }
 
@@ -602,8 +664,10 @@ int main(void) {
                     }
                     else if (selectedOption == 7) {
                         SaveGameSettings(&settings);
-                        currentState = STATE_MENU;
-                        selectedOption = 3;
+                        
+                        currentState = returnState;
+                        
+                        if (returnState == STATE_MENU) selectedOption = 3;
                     }
                 }
                 break;
@@ -617,14 +681,27 @@ int main(void) {
 
             case STATE_GAMEPLAY:
                 int gameResult = GameScene_Update();
+                
                 if (gameResult == 1) {
+                    StopMusicStream(fightMusic);
+                    
                     currentState = STATE_QUICKPLAY_MENU;
                     selectedOption = 0;
-
                     if (!isMenuMusicPlaying) {
                         PlayMusicStream(menuMusic);
                         isMenuMusicPlaying = true;
                     }
+                }
+                else if (gameResult == 2) {
+                    returnState = STATE_GAMEPLAY;
+                    currentState = STATE_SETTINGS;
+                    selectedOption = 0; 
+                }
+                break;
+
+            case STATE_DEMO_LOCK:
+                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_BACKSPACE)) {
+                    currentState = returnState;
                 }
                 break;
         }
@@ -896,7 +973,7 @@ int main(void) {
                     Color bgTint = (Color){ 200, 200, 200, 255 }; 
                     DrawTexturePro(charSelectBg, (Rectangle){0, 0, charSelectBg.width, charSelectBg.height}, (Rectangle){0, 0, 1200, 720}, (Vector2){0, 0}, 0.0f, bgTint);
 
-                    const char* title = "SELECT YOUR MICROBE";
+                    const char* title = (settings.language == LANG_EN) ? "SELECT YOUR MICROBE" : "SELECIONE SEU MICROBIO";
                     DrawTextEx(gameFont, title, (Vector2){(1200 - MeasureTextEx(gameFont, title, fontSizeTitle, fontSpacing).x)/2, 30}, fontSizeTitle, fontSpacing, WHITE);
 
                     int columns = 4;
@@ -913,16 +990,21 @@ int main(void) {
                     for (int i = 0; i < CHAR_COUNT; i++) {
                         int col = i % columns;
                         int row = i / columns;
+                        bool isLocked = (i > 1);
 
                         float drawX = startX + col * (boxSize + spacing);
                         float drawY = startY + row * (boxSize + spacing);
                         Rectangle boxRect = { drawX, drawY, boxSize, boxSize };
 
-                        DrawTexturePro(charBoxTex, 
-                            (Rectangle){0, 0, charBoxTex.width, charBoxTex.height}, 
+                        Texture2D texToDraw = isLocked ? lockedBoxTex : charBoxTex;
+
+                        DrawTexturePro(texToDraw, 
+                            (Rectangle){0, 0, texToDraw.width, texToDraw.height}, 
                             boxRect, (Vector2){0,0}, 0.0f, WHITE);
 
-                        DrawRectangle(drawX + 10, drawY + 10, boxSize - 20, boxSize - 20, (Color){0, 0, 0, 100});
+                        if (!isLocked) {
+                            DrawRectangle(drawX + 10, drawY + 10, boxSize - 20, boxSize - 20, (Color){0, 0, 0, 100});
+                        }
 
                         if (i == p1Selection) {
                             DrawRectangleLinesEx(boxRect, 4.0f, RED);
@@ -938,11 +1020,6 @@ int main(void) {
                         }
                     }
 
-                    float nameBoxW = 300;
-                    float nameBoxH = 60;
-                    float roundness = 0.5f;
-                    int segments = 10;
-                
                     float infoBoxW = 340; 
                     float infoBoxH = 190;
                     float infoBoxX = 40;  
@@ -956,65 +1033,116 @@ int main(void) {
 
                     float textLeftMargin = infoBoxX + 25;
                     float textTopMargin = infoBoxY + 20;
-                
-                    const char* p1Txt = charNames[p1Selection];
-                
-                    float nameFontSize = gameFont.baseSize; 
-                
-                    DrawTextEx(gameFont, p1Txt, (Vector2){textLeftMargin, textTopMargin}, nameFontSize, fontSpacing, WHITE);
-
                     float statsStartY = textTopMargin + 45; 
                     float lineHeight = 30.0f;               
-
                     float valueOffsetX = 160.0f; 
+                    float nameFontSize = gameFont.baseSize;
+                    
+                    const char* lblSTR = (settings.language == LANG_EN) ? "STR:" : "FOR:";
+                    const char* lblSPD = (settings.language == LANG_EN) ? "SPD:" : "VEL:";
+                    const char* statLow = (settings.language == LANG_EN) ? "LOW" : "BAIXO";
+                    const char* statMed = (settings.language == LANG_EN) ? "MED" : "MEDIO";
+                    const char* statHigh = (settings.language == LANG_EN) ? "HIGH" : "ALTO";
+                    const char* localizedLabels[] = { statLow, statMed, statHigh };
 
-                    int hpVal = statsHP[p1Selection];
-                    DrawTextEx(gameFont, "HP:", (Vector2){textLeftMargin, statsStartY}, nameFontSize, fontSpacing, WHITE);
-                    DrawTextEx(gameFont, statLabels[hpVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY}, nameFontSize, fontSpacing, statColors[hpVal]);
+                    if (p1Selection > 1) {
+                         DrawTextEx(gameFont, "???", (Vector2){textLeftMargin, textTopMargin}, nameFontSize, fontSpacing, GRAY);
+                         DrawTextEx(gameFont, "HP:", (Vector2){textLeftMargin, statsStartY}, nameFontSize, fontSpacing, WHITE);
+                         DrawTextEx(gameFont, "???", (Vector2){textLeftMargin + valueOffsetX, statsStartY}, nameFontSize, fontSpacing, GRAY);
+                         
+                         DrawTextEx(gameFont, lblSTR, (Vector2){textLeftMargin, statsStartY + lineHeight}, nameFontSize, fontSpacing, WHITE);
+                         DrawTextEx(gameFont, "???", (Vector2){textLeftMargin + valueOffsetX, statsStartY + lineHeight}, nameFontSize, fontSpacing, GRAY);
 
-                    int strVal = statsSTR[p1Selection];
-                    DrawTextEx(gameFont, "STR:", (Vector2){textLeftMargin, statsStartY + lineHeight}, nameFontSize, fontSpacing, WHITE);
-                    DrawTextEx(gameFont, statLabels[strVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY + lineHeight}, nameFontSize, fontSpacing, statColors[strVal]);
+                         DrawTextEx(gameFont, lblSPD, (Vector2){textLeftMargin, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, WHITE);
+                         DrawTextEx(gameFont, "???", (Vector2){textLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, GRAY);
+                    } 
+                    else {
+                        const char* p1Txt = charNames[p1Selection];
+                        DrawTextEx(gameFont, p1Txt, (Vector2){textLeftMargin, textTopMargin}, nameFontSize, fontSpacing, WHITE);
 
-                    int spdVal = statsSPD[p1Selection];
-                    DrawTextEx(gameFont, "SPD:", (Vector2){textLeftMargin, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, WHITE);
-                    DrawTextEx(gameFont, statLabels[spdVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, statColors[spdVal]);
+                        int hpVal = statsHP[p1Selection];
+                        DrawTextEx(gameFont, "HP:", (Vector2){textLeftMargin, statsStartY}, nameFontSize, fontSpacing, WHITE);
+                        DrawTextEx(gameFont, localizedLabels[hpVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY}, nameFontSize, fontSpacing, statColors[hpVal]);
+
+                        int strVal = statsSTR[p1Selection];
+                        DrawTextEx(gameFont, lblSTR, (Vector2){textLeftMargin, statsStartY + lineHeight}, nameFontSize, fontSpacing, WHITE);
+                        DrawTextEx(gameFont, localizedLabels[strVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY + lineHeight}, nameFontSize, fontSpacing, statColors[strVal]);
+
+                        int spdVal = statsSPD[p1Selection];
+                        DrawTextEx(gameFont, lblSPD, (Vector2){textLeftMargin, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, WHITE);
+                        DrawTextEx(gameFont, localizedLabels[spdVal], (Vector2){textLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, statColors[spdVal]);
+                    }
 
                     DrawTextEx(gameFont, "P1", (Vector2){infoBoxX + infoBoxW - 40, infoBoxY + infoBoxH - 30}, 23, fontSpacing, RED);
 
                     if (isSelectingP2 || isMultiplayer) {
                         float p2BoxX = 1200 - infoBoxX - infoBoxW; 
                         Rectangle p2DestRec = { p2BoxX, infoBoxY, infoBoxW, infoBoxH };
-                        
                         Color p2Tint = isSelectingP2 ? WHITE : GRAY;
-                        
                         DrawTexturePro(infoBoxTex, (Rectangle){0, 0, infoBoxTex.width, infoBoxTex.height}, p2DestRec, (Vector2){0,0}, 0.0f, p2Tint);
-
                         float p2TextLeftMargin = p2BoxX + 25;
 
-                        const char* p2Txt = charNames[p2Selection];
-                        DrawTextEx(gameFont, p2Txt, (Vector2){p2TextLeftMargin, textTopMargin}, nameFontSize, fontSpacing, WHITE);
+                        if (p2Selection > 1) {
+                            DrawTextEx(gameFont, "???", (Vector2){p2TextLeftMargin, textTopMargin}, nameFontSize, fontSpacing, GRAY);
+                            DrawTextEx(gameFont, "HP:", (Vector2){p2TextLeftMargin, statsStartY}, nameFontSize, fontSpacing, WHITE);
+                            DrawTextEx(gameFont, "???", (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY}, nameFontSize, fontSpacing, GRAY);
+                            DrawTextEx(gameFont, lblSTR, (Vector2){p2TextLeftMargin, statsStartY + lineHeight}, nameFontSize, fontSpacing, WHITE);
+                            DrawTextEx(gameFont, "???", (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + lineHeight}, nameFontSize, fontSpacing, GRAY);
+                            DrawTextEx(gameFont, lblSPD, (Vector2){p2TextLeftMargin, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, WHITE);
+                            DrawTextEx(gameFont, "???", (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, GRAY);
+                        }
+                        else {
+                            const char* p2Txt = charNames[p2Selection];
+                            DrawTextEx(gameFont, p2Txt, (Vector2){p2TextLeftMargin, textTopMargin}, nameFontSize, fontSpacing, WHITE);
 
-                        int hpValP2 = statsHP[p2Selection];
-                        int strValP2 = statsSTR[p2Selection];
-                        int spdValP2 = statsSPD[p2Selection];
+                            int hpValP2 = statsHP[p2Selection];
+                            int strValP2 = statsSTR[p2Selection];
+                            int spdValP2 = statsSPD[p2Selection];
 
-                        DrawTextEx(gameFont, "HP:", (Vector2){p2TextLeftMargin, statsStartY}, nameFontSize, fontSpacing, WHITE);
-                        DrawTextEx(gameFont, statLabels[hpValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY}, nameFontSize, fontSpacing, statColors[hpValP2]);
+                            DrawTextEx(gameFont, "HP:", (Vector2){p2TextLeftMargin, statsStartY}, nameFontSize, fontSpacing, WHITE);
+                            DrawTextEx(gameFont, localizedLabels[hpValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY}, nameFontSize, fontSpacing, statColors[hpValP2]);
 
-                        DrawTextEx(gameFont, "STR:", (Vector2){p2TextLeftMargin, statsStartY + lineHeight}, nameFontSize, fontSpacing, WHITE);
-                        DrawTextEx(gameFont, statLabels[strValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + lineHeight}, nameFontSize, fontSpacing, statColors[strValP2]);
+                            DrawTextEx(gameFont, lblSTR, (Vector2){p2TextLeftMargin, statsStartY + lineHeight}, nameFontSize, fontSpacing, WHITE);
+                            DrawTextEx(gameFont, localizedLabels[strValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + lineHeight}, nameFontSize, fontSpacing, statColors[strValP2]);
 
-                        DrawTextEx(gameFont, "SPD:", (Vector2){p2TextLeftMargin, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, WHITE);
-                        DrawTextEx(gameFont, statLabels[spdValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, statColors[spdValP2]);
-                    
+                            DrawTextEx(gameFont, lblSPD, (Vector2){p2TextLeftMargin, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, WHITE);
+                            DrawTextEx(gameFont, localizedLabels[spdValP2], (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, statColors[spdValP2]);
+                        }
                         DrawTextEx(gameFont, "P2", (Vector2){p2BoxX + infoBoxW - 40, infoBoxY + infoBoxH - 30}, 23, fontSpacing, BLUE);
                     }
                         
-                    const char* instr = isSelectingP2 ? "P2: CHOOSE CHARACTER" : "P1: CHOOSE CHARACTER";
+                    const char* instrEN = isSelectingP2 ? "P2: CHOOSE CHARACTER" : "P1: CHOOSE CHARACTER";
+                    const char* instrPT = isSelectingP2 ? "P2: ESCOLHA O PERSONAGEM" : "P1: ESCOLHA O PERSONAGEM";
+                    const char* instr = (settings.language == LANG_EN) ? instrEN : instrPT;
+
                     DrawTextEx(gameFont, instr, (Vector2){(1200 - MeasureTextEx(gameFont, instr, fontSizeSmall, fontSpacing).x)/2, 690}, fontSizeSmall, fontSpacing, YELLOW);
-                    
                 }   
+                break;
+
+                case STATE_DEMO_LOCK:
+                {
+                    ClearBackground((Color){15, 10, 25, 255});
+                    
+                    float scale = 0.6f; 
+                    float rotation = -5.0f;
+                    Rectangle sourceRec = {0, 0, (float)boxArtTex.width, (float)boxArtTex.height};
+                    Rectangle destRec = {210, 360, (float)boxArtTex.width * scale, (float)boxArtTex.height * scale};
+                    Vector2 origin = {(float)boxArtTex.width * scale / 2, (float)boxArtTex.height * scale / 2};
+                    
+                    DrawTexturePro(boxArtTex, sourceRec, destRec, origin, rotation, WHITE);
+
+                    const char* textToShow = (settings.language == LANG_EN) ? demo_lock_en : demo_lock_pt;
+                    
+                    Vector2 textPos = { 500, 150 };
+                    float fontSizeDemo = mainFont.baseSize * 0.75f;
+                    float spacingDemo = 2.0f;
+                
+                    DrawTextEx(mainFont, textToShow, textPos, fontSizeDemo, spacingDemo, WHITE);
+
+                    const char* returnTxt = (settings.language == LANG_EN) ? "Press ENTER to Return" : "Pressione ENTER para Voltar";
+                    Vector2 mRet = MeasureTextEx(mainFont, returnTxt, fontSizeOption, spacingDemo);
+                    DrawTextEx(mainFont, returnTxt, (Vector2){(1200 - mRet.x)/2, 650}, fontSizeOption, spacingDemo, YELLOW);
+                }
                 break;
                 
                 case STATE_GAMEPLAY:
@@ -1058,6 +1186,8 @@ int main(void) {
     UnloadTexture(charSelectBg);
     UnloadTexture(charBoxTex);
     UnloadTexture(infoBoxTex);
+    UnloadTexture(lockedBoxTex);
+    UnloadTexture(boxArtTex);
     UnloadFont(mainFont);
     UnloadFont(gameFont);
     UnloadImage(icon);
@@ -1073,6 +1203,8 @@ int main(void) {
     UnloadMusicStream(menuMusic);
     StopMusicStream(cssMusic);
     UnloadMusicStream(cssMusic);
+    StopMusicStream(fightMusic);
+    UnloadMusicStream(fightMusic);
 
     CloseAudioDevice();
     CloseWindow();
