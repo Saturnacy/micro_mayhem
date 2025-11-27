@@ -28,8 +28,7 @@
       "damage": 5.0,
       "startup": 6, "active": 12, "recovery": 10,
       "knockback": { "x": 4.0, "y": 0.0 },
-      "hitbox": { "x": 10, "y": 25, "w": 40, "h": 15 },
-      "note": "Animation should visually poke both sides, logic handles front hit"
+      "hitbox": { "x": 10, "y": 25, "w": 40, "h": 15 }
     },
     "neutral_ground": {
       "name": "Vibration Pulse",

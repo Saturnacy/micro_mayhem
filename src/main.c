@@ -227,6 +227,12 @@ int main(void) {
     infoBoxTex = LoadTexture("assets/infobox.png");
     SetTextureFilter(infoBoxTex, TEXTURE_FILTER_POINT);
 
+    Texture2D bactIcon = LoadTexture("assets/bacteriophage_icon.png");
+    SetTextureFilter(bactIcon, TEXTURE_FILTER_POINT);
+
+    Texture2D amoebaIcon = LoadTexture("assets/amoeba_icon.png");
+    SetTextureFilter(amoebaIcon, TEXTURE_FILTER_POINT);
+
     Texture2D boxArtTex = LoadTexture("assets/boxart.png");
 
     // =========================================================
@@ -1002,6 +1008,20 @@ int main(void) {
                             (Rectangle){0, 0, texToDraw.width, texToDraw.height}, 
                             boxRect, (Vector2){0,0}, 0.0f, WHITE);
 
+                        if (i == 0) {
+                            float iconScale = 3.5f;
+                            float iconX = drawX + (boxSize - (bactIcon.width * iconScale)) / 2;
+                            float iconY = drawY + (boxSize - (bactIcon.height * iconScale)) / 2;
+                            DrawTextureEx(bactIcon, (Vector2){iconX, iconY}, 0.0f, iconScale, WHITE);
+                        }
+
+                        else if (i == 1) {
+                            float iconScale = 3.5f;
+                            float iconX = drawX + (boxSize - (amoebaIcon.width * iconScale)) / 2;
+                            float iconY = drawY + (boxSize - (amoebaIcon.height * iconScale)) / 2;
+                            DrawTextureEx(amoebaIcon, (Vector2){iconX, iconY}, 0.0f, iconScale, WHITE);
+                        }
+
                         if (!isLocked) {
                             DrawRectangle(drawX + 10, drawY + 10, boxSize - 20, boxSize - 20, (Color){0, 0, 0, 100});
                         }
@@ -1188,6 +1208,8 @@ int main(void) {
     UnloadTexture(infoBoxTex);
     UnloadTexture(lockedBoxTex);
     UnloadTexture(boxArtTex);
+    UnloadTexture(bactIcon);
+    UnloadTexture(amoebaIcon);
     UnloadFont(mainFont);
     UnloadFont(gameFont);
     UnloadImage(icon);

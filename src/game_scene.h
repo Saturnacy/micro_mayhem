@@ -125,6 +125,7 @@ typedef struct Player {
     int attackFrameCounter;
     Moveset *moves;
     Move *currentMove;
+    int characterID;
     
     float health;
     float maxHealth;
@@ -204,6 +205,10 @@ void Combat_Draw(Texture2D poisonTex);
 void Combat_Cleanup(void);
 void Combat_TryExecuteMove(Player *player, Move *move, bool isPlayer1);
 void Combat_ApplyStatus(Player *player, float dt);
+void PlayHurtSound(void);
+void SpawnVfx(Vector2 pos, float rotation, Texture2D tex, int frames, float speed, float scale);
+
+extern Texture2D texHitVfx;
 
 Moveset* LoadMovesetFromJSON(const char *filename);
 

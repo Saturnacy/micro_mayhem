@@ -164,11 +164,9 @@ void Combat_Update(Player *p1, Player *p2) {
             hb->size.width += hb->size.x;
             hb->size.x = 0;
         }
-
         if (hb->size.x + hb->size.width > GAME_WIDTH) {
             hb->size.width = GAME_WIDTH - hb->size.x;
         }
-
         if (hb->size.y + hb->size.height > GROUND_LEVEL) {
             hb->size.height = GROUND_LEVEL - hb->size.y;
         }
@@ -206,6 +204,15 @@ void Combat_Update(Player *p1, Player *p2) {
         if (CheckCollisionRecs((Rectangle){proj->position.x, proj->position.y, proj->size.width, proj->size.height}, victimBody)) {
             victim->currentHealth -= proj->damage;
 
+            if (proj->effect != EFFECT_POISON) {
+                Vector2 spawnPos = {
+                    victimBody.x + victimBody.width / 2.0f,
+                    victimBody.y + victimBody.height / 2.0f
+                };
+                SpawnVfx(spawnPos, 0.0f, texHitVfx, 8, 0.04f, 1.0f);
+                PlayHurtSound();
+            }
+
             if (proj->moveType != MOVE_TYPE_ULTIMATE && proj->moveType != MOVE_TYPE_ULTIMATE_FALL) {
                 float gainAttacker = proj->damage * 0.8f;
                 float gainVictim = proj->damage * 0.5f;
@@ -242,6 +249,15 @@ void Combat_Update(Player *p1, Player *p2) {
             victim->currentHealth -= hb->damage;
             if (hb->effect == EFFECT_POISON) victim->poisonTimer = hb->effectDuration;
 
+            if (hb->effect != EFFECT_POISON) {
+                Vector2 spawnPos = {
+                    victimBody.x + victimBody.width / 2.0f,
+                    victimBody.y + victimBody.height / 2.0f
+                };
+                SpawnVfx(spawnPos, 0.0f, texHitVfx, 8, 0.04f, 1.0f);
+                PlayHurtSound();
+            }
+
             if (hb->moveType != MOVE_TYPE_ULTIMATE && hb->moveType != MOVE_TYPE_ULTIMATE_FALL) {
                 float gainAttacker = hb->damage * 5.0f; 
                 float gainVictim = hb->damage * 2.0f;   
@@ -262,9 +278,8 @@ void Combat_Update(Player *p1, Player *p2) {
             victim->velocity.x = hb->knockback.x * kbDir;
 
             if (!attacker->isGrounded && attacker->position.y < victim->position.y - 30.0f) {
-                victim->velocity.y = fabs(hb->knockback.y);
-            } 
-            else {
+                victim->velocity.y = fabs(hb->knockback.y); 
+            } else {
                 victim->velocity.y = hb->knockback.y;
             }
             
@@ -289,6 +304,15 @@ void Combat_Update(Player *p1, Player *p2) {
             if ((int)trap->duration % 60 == 0) {
                 victim->currentHealth -= trap->damage;
                 if (trap->effect == EFFECT_POISON) victim->poisonTimer = 5.0f;
+                
+                if (trap->effect != EFFECT_POISON) {
+                    Vector2 spawnPos = {
+                        victimBody.x + victimBody.width / 2.0f,
+                        victimBody.y + victimBody.height / 2.0f
+                    };
+                    SpawnVfx(spawnPos, 0.0f, texHitVfx, 8, 0.04f, 1.0f);
+                    PlayHurtSound();
+                }
             }
         }
         trap = trap->next;
@@ -353,10 +377,6 @@ void Combat_Draw(Texture2D poisonTex) {
 
     for (ProjectileNode *p = activeProjectiles; p != NULL; p = p->next) {
         DrawRectangle(p->position.x, p->position.y, p->size.width, p->size.height, YELLOW);
-    }
-
-    for (HitboxNode *h = activeHitboxes; h != NULL; h = h->next) {
-        DrawRectangleLinesEx(h->size, 2, RED);
     }
 }
 

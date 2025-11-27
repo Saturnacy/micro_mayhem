@@ -45,6 +45,11 @@ const char* pauseOptionsText[] = { "RESUME", "SETTINGS", "QUIT MATCH" };
 static Texture2D texBackground;
 static Texture2D texPoisonCloud;
 static Texture2D texExplosion;
+static Texture2D texBactIcon;
+static Texture2D texAmoebaIcon;
+Texture2D texHitVfx;
+static Sound sndHurt1;
+static Sound sndHurt2;
 
 static Texture2D texGuiFrame;
 static Texture2D texSyringeEmptyL, texSyringeFullL;
@@ -69,7 +74,7 @@ static const char* GetCharacterName(int charID) {
     }
 }
 
-static void SpawnVfx(Vector2 pos, float rotation, Texture2D tex, int frames, float speed, float scale) {
+void SpawnVfx(Vector2 pos, float rotation, Texture2D tex, int frames, float speed, float scale) {
     VfxNode *newNode = (VfxNode*)malloc(sizeof(VfxNode));
     if (!newNode) return;
 
@@ -185,30 +190,32 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
             if (IsKeyDown(input.right)) player->position.x += move->steerSpeed;
         }
 
-        if (move == &player->moves->specialSide || 
-            move == &player->moves->specialUp || 
-            move == &player->moves->ultimate) {
-            
-            player->vfxSpawnTimer += dt;
-            if (player->vfxSpawnTimer >= 0.4f) {
-                player->vfxSpawnTimer = 0.0f;
-                Vector2 spawnPos = player->position;
-                float rotation = 0.0f;
+        if (player->characterID == 0) {
+            if (move == &player->moves->specialSide || 
+                move == &player->moves->specialUp || 
+                move == &player->moves->ultimate) {
+                
+                player->vfxSpawnTimer += dt;
+                if (player->vfxSpawnTimer >= 0.4f) {
+                    player->vfxSpawnTimer = 0.0f;
+                    Vector2 spawnPos = player->position;
+                    float rotation = 0.0f;
 
-                if (move == &player->moves->specialSide) {
-                    spawnPos.x += player->isFlipped ? 40 : -40;
-                    spawnPos.y -= 30; 
-                    rotation = player->isFlipped ? -90.0f : 90.0f;
-                } else if (move == &player->moves->specialUp) {
-                    spawnPos.y += 20; 
-                } else if (move == &player->moves->ultimate) {
-                    if (player->velocity.y > 0) { spawnPos.y -= 70; rotation = 180.0f; }
-                    else spawnPos.y += 20;
+                    if (move == &player->moves->specialSide) {
+                        spawnPos.x += player->isFlipped ? 40 : -40;
+                        spawnPos.y -= 30; 
+                        rotation = player->isFlipped ? -90.0f : 90.0f;
+                    } else if (move == &player->moves->specialUp) {
+                        spawnPos.y += 20; 
+                    } else if (move == &player->moves->ultimate) {
+                        if (player->velocity.y > 0) { spawnPos.y -= 70; rotation = 180.0f; }
+                        else spawnPos.y += 20;
+                    }
+                    SpawnVfx(spawnPos, rotation, texRocketVfx, 11, 0.05f, 2.5f); 
                 }
-                SpawnVfx(spawnPos, rotation, texRocketVfx, 11, 0.05f, 2.5f); 
+            } else {
+                 player->vfxSpawnTimer = 0.4f;
             }
-        } else {
-             player->vfxSpawnTimer = 0.4f;
         }
 
         if (move->type == MOVE_TYPE_ULTIMATE_FALL) {
@@ -258,7 +265,7 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
         if (player->position.y > GROUND_LEVEL) { 
              if (move->selfVelocity.y > 0 || move->fallSpeed > 0) {
                  
-                 if (move->type == MOVE_TYPE_ULTIMATE_FALL) {
+                 if (move->type == MOVE_TYPE_ULTIMATE_FALL && player->characterID == 0) {
                      Move explosion = {0};
                      explosion.type = MOVE_TYPE_ULTIMATE; 
                      explosion.hitbox = (Rectangle){ -400, -500, 800, 600 }; 
@@ -594,29 +601,31 @@ static void UpdateAI(Player *ai, Player *target, float dt) {
             ai->velocity.y = move->selfVelocity.y;
         }
 
-        if (move == &ai->moves->specialSide || 
-            move == &ai->moves->specialUp || 
-            move == &ai->moves->ultimate) {
-            
-            ai->vfxSpawnTimer += dt;
-            if (ai->vfxSpawnTimer >= 0.4f) {
-                ai->vfxSpawnTimer = 0.0f;
-                Vector2 spawnPos = ai->position;
-                float rotation = 0.0f;
-                if (move == &ai->moves->specialSide) {
-                    spawnPos.x += ai->isFlipped ? 40 : -40;
-                    spawnPos.y -= 30;
-                    rotation = ai->isFlipped ? -90.0f : 90.0f;
-                } else if (move == &ai->moves->specialUp) {
-                    spawnPos.y += 20; 
-                } else if (move == &ai->moves->ultimate) {
-                    if (ai->velocity.y > 0) { spawnPos.y -= 70; rotation = 180.0f; }
-                    else spawnPos.y += 20;
+        if (ai->characterID == 0) {
+            if (move == &ai->moves->specialSide || 
+                move == &ai->moves->specialUp || 
+                move == &ai->moves->ultimate) {
+                
+                ai->vfxSpawnTimer += dt;
+                if (ai->vfxSpawnTimer >= 0.4f) {
+                    ai->vfxSpawnTimer = 0.0f;
+                    Vector2 spawnPos = ai->position;
+                    float rotation = 0.0f;
+                    if (move == &ai->moves->specialSide) {
+                        spawnPos.x += ai->isFlipped ? 40 : -40;
+                        spawnPos.y -= 30;
+                        rotation = ai->isFlipped ? -90.0f : 90.0f;
+                    } else if (move == &ai->moves->specialUp) {
+                        spawnPos.y += 20; 
+                    } else if (move == &ai->moves->ultimate) {
+                        if (ai->velocity.y > 0) { spawnPos.y -= 70; rotation = 180.0f; }
+                        else spawnPos.y += 20;
+                    }
+                    SpawnVfx(spawnPos, rotation, texRocketVfx, 11, 0.05f, 2.5f);
                 }
-                SpawnVfx(spawnPos, rotation, texRocketVfx, 11, 0.05f, 2.5f);
+            } else {
+                 ai->vfxSpawnTimer = 0.4f;
             }
-        } else {
-             ai->vfxSpawnTimer = 0.4f;
         }
 
         if (move->type == MOVE_TYPE_ULTIMATE_FALL) {
@@ -659,7 +668,7 @@ static void UpdateAI(Player *ai, Player *target, float dt) {
         if (ai->position.y > GROUND_LEVEL) {
             if (move->selfVelocity.y > 0 || move->fallSpeed > 0) {
                  
-                 if (move->type == MOVE_TYPE_ULTIMATE_FALL) {
+                 if (move->type == MOVE_TYPE_ULTIMATE_FALL && ai->characterID == 0) {
                      Move explosion = {0};
                      explosion.type = MOVE_TYPE_ULTIMATE; 
                      explosion.hitbox = (Rectangle){ -400, -500, 800, 600 }; 
@@ -785,7 +794,6 @@ void DrawPlayerSprite(Player *p, Color tint) {
     if (p->isFlipped) sourceRec.width = -sourceRec.width;
 
     float scale = 3.0f; 
-
     Rectangle destRec = {
         p->position.x, 
         p->position.y, 
@@ -794,17 +802,11 @@ void DrawPlayerSprite(Player *p, Color tint) {
     };
     
     float feetOffset = 38.0f; 
-
-    Vector2 origin = { 
-        destRec.width / 2.0f, 
-        destRec.height - feetOffset 
-    }; 
-    
+    Vector2 origin = { destRec.width / 2.0f, destRec.height - feetOffset }; 
     float rotation = 0.0f;
 
-    if (p->state == PLAYER_STATE_ATTACK && p->currentAnimIndex == 19) {
+    if (p->characterID == 0 && p->state == PLAYER_STATE_ATTACK && p->currentAnimIndex == 19) {
         origin.y = destRec.height / 2.0f; 
-        
         destRec.y -= (destRec.height / 2.0f) - feetOffset; 
 
         if (p->currentMove == &p->moves->specialSide) {
@@ -814,11 +816,8 @@ void DrawPlayerSprite(Player *p, Color tint) {
             rotation = 0.0f;
         }
         else if (p->currentMove == &p->moves->ultimate) {
-            if (p->velocity.y > 0) {
-                 rotation = 180.0f;
-            } else {
-                 rotation = 0.0f;
-            }
+            if (p->velocity.y > 0) rotation = 180.0f;
+            else rotation = 0.0f;
         }
     }
 
@@ -831,43 +830,58 @@ void UpdatePlayerAnimation(Player *p, float dt) {
     float speed = 0.12f;
     bool loop = true;
 
-    if (p->state == PLAYER_STATE_HURT) {
-        start = 24; len = 1; loop = false;
+    if (p->characterID == 0) {
+        if (p->state == PLAYER_STATE_HURT) { start = 24; len = 1; loop = false; }
+        else if (p->state == PLAYER_STATE_ATTACK) {
+            loop = false; speed = 0.08f;
+            if (p->currentMove == &p->moves->specialSide || 
+                p->currentMove == &p->moves->specialUp || 
+                p->currentMove == &p->moves->ultimate) { start = 19; len = 1; loop = true; }
+            else if (p->currentMove == &p->moves->sideGround)      { start = 12; len = 2; }
+            else if (p->currentMove == &p->moves->upGround)   { start = 14; len = 3; }
+            else if (p->currentMove == &p->moves->neutralGround) { start = 17; len = 2; }
+            else if (p->currentMove == &p->moves->airSide)    { start = 20; len = 1; }
+            else if (p->currentMove == &p->moves->airUp)      { start = 21; len = 1; }
+            else if (p->currentMove == &p->moves->airDown)    { start = 22; len = 2; }
+            else { start = 12; len = 2; }
+        }
+        else if (p->state == PLAYER_STATE_JUMP) { start = 6; len = 4; speed = 0.1f; loop = false; }
+        else if (p->state == PLAYER_STATE_FALL) { start = 10; len = 2; speed = 0.15f; }
+        else if (p->state == PLAYER_STATE_WALK) { start = 2; len = 4; speed = 0.12f; }
+        else { start = 0; len = 2; speed = 0.3f; }
     }
-    else if (p->state == PLAYER_STATE_ATTACK) {
-        loop = false;
-        speed = 0.08f;
 
-        if (p->currentMove == &p->moves->specialSide || 
-            p->currentMove == &p->moves->specialUp || 
-            p->currentMove == &p->moves->ultimate) {
+    else if (p->characterID == 1) {
+        if (p->state == PLAYER_STATE_HURT) { 
+            start = 50; len = 1; loop = false;
+        }
+        else if (p->state == PLAYER_STATE_ATTACK) {
+            loop = false; speed = 0.08f;
             
-            start = 19;
-            len = 1; 
-            loop = true;
+            if (p->currentMove == &p->moves->sideGround || p->currentMove == &p->moves->specialSide) 
+                { start = 13; len = 5; }
+            
+            else if (p->currentMove == &p->moves->neutralGround || p->currentMove == &p->moves->specialNeutral) 
+                { start = 18; len = 5; }
+            
+            else if (p->currentMove == &p->moves->upGround || p->currentMove == &p->moves->specialUp) 
+                { start = 23; len = 5; }
+            
+            else if (p->currentMove == &p->moves->downGround || p->currentMove == &p->moves->specialDown) 
+                { start = 28; len = 6; }
+            
+            else if (p->currentMove == &p->moves->airSide)    { start = 34; len = 5; }
+            else if (p->currentMove == &p->moves->airNeutral) { start = 39; len = 4; }
+            else if (p->currentMove == &p->moves->airDown)    { start = 43; len = 3; }
+            else if (p->currentMove == &p->moves->airUp)      { start = 46; len = 4; }
+            
+            else if (p->currentMove == &p->moves->ultimate)   { start = 39; len = 4; loop = true; }
+            else { start = 18; len = 5; }
         }
-
-        else if (p->currentMove == &p->moves->sideGround)      { start = 12; len = 2; }
-        else if (p->currentMove == &p->moves->upGround)   { start = 14; len = 3; }
-        else if (p->currentMove == &p->moves->neutralGround) { start = 17; len = 2; }
-        else if (p->currentMove == &p->moves->airSide)    { start = 20; len = 1; }
-        else if (p->currentMove == &p->moves->airUp)      { start = 21; len = 1; }
-        else if (p->currentMove == &p->moves->airDown)    { start = 22; len = 2; }
-        else { 
-            start = 12; len = 2;
-        }
-    }
-    else if (p->state == PLAYER_STATE_JUMP) {
-        start = 6; len = 4; speed = 0.1f; loop = false; 
-    }
-    else if (p->state == PLAYER_STATE_FALL) {
-        start = 10; len = 2; speed = 0.15f;
-    }
-    else if (p->state == PLAYER_STATE_WALK) {
-        start = 2; len = 4; speed = 0.12f;
-    }
-    else {
-        start = 0; len = 2; speed = 0.3f;
+        else if (p->state == PLAYER_STATE_JUMP) { start = 10; len = 1; loop = false; }
+        else if (p->state == PLAYER_STATE_FALL) { start = 11; len = 2; speed = 0.15f; }
+        else if (p->state == PLAYER_STATE_WALK) { start = 4; len = 6; speed = 0.12f; }
+        else { start = 0; len = 4; speed = 0.2f; }
     }
 
     if (p->animStartFrame != start) {
@@ -898,6 +912,14 @@ void GameScene_SetLanguage(int lang) {
     currentLanguage = lang;
 }
 
+void PlayHurtSound(void) {
+    if (GetRandomValue(0, 1) == 0) {
+        PlaySound(sndHurt1);
+    } else {
+        PlaySound(sndHurt2);
+    }
+}
+
 void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     sceneState = SCENE_STATE_START;
     matchWinner = 0;
@@ -905,6 +927,7 @@ void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     fightBannerTimer = 0;
 
     player1 = (Player*)malloc(sizeof(Player));
+    player1->characterID = p1CharacterID;
     player1->position = (Vector2){ 400, GROUND_LEVEL };
     player1->velocity = (Vector2){ 0, 0 };
     player1->isGrounded = false;
@@ -927,6 +950,7 @@ void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     TextCopy(player1->name, GetCharacterName(p1CharacterID));
 
     player2 = (Player*)malloc(sizeof(Player));
+    player2->characterID = p2CharacterID;
     player2->position = (Vector2){ 800, GROUND_LEVEL };
     player2->velocity = (Vector2){ 0, 0 };
     player2->isGrounded = false;
@@ -972,11 +996,16 @@ void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     texTabletInactive = LoadTexture("assets/tablet_inactive.png");
 
     texBackground = LoadTexture("assets/matchbg.png");
-     SetTextureFilter(texBackground, TEXTURE_FILTER_POINT);
+    SetTextureFilter(texBackground, TEXTURE_FILTER_POINT);
 
-    player1->spriteSheet = LoadTexture("assets/Bacteriofago.png");
-    player2->spriteSheet = LoadTexture("assets/Bacteriofago.png");
+    if (p1CharacterID == 0) player1->spriteSheet = LoadTexture("assets/Bacteriofago.png");
+    else if (p1CharacterID == 1) player1->spriteSheet = LoadTexture("assets/Ameba.png");
+
+    if (p2CharacterID == 0) player2->spriteSheet = LoadTexture("assets/Bacteriofago.png");
+    else if (p2CharacterID == 1) player2->spriteSheet = LoadTexture("assets/Ameba.png");
+
     SetTextureFilter(player1->spriteSheet, TEXTURE_FILTER_POINT);
+    SetTextureFilter(player2->spriteSheet, TEXTURE_FILTER_POINT);
 
     texRocketVfx = LoadTexture("assets/rocketfx.png");
     SetTextureFilter(texRocketVfx, TEXTURE_FILTER_POINT);
@@ -987,11 +1016,27 @@ void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     texExplosion = LoadTexture("assets/explosion.png");
     SetTextureFilter(texExplosion, TEXTURE_FILTER_POINT);
 
+    texHitVfx = LoadTexture("assets/hit.png");
+    SetTextureFilter(texHitVfx, TEXTURE_FILTER_POINT);
+
+    texExplosion = LoadTexture("assets/green_explosion.png");
+    SetTextureFilter(texExplosion, TEXTURE_FILTER_POINT);
+
+    texBactIcon = LoadTexture("assets/bacteriophage_icon.png");
+    SetTextureFilter(texBactIcon, TEXTURE_FILTER_POINT);
+
+    texAmoebaIcon = LoadTexture("assets/amoeba_icon.png");
+    SetTextureFilter(texAmoebaIcon, TEXTURE_FILTER_POINT);
+
+    sndHurt1 = LoadSound("assets/audio/hurt1.wav");
+    sndHurt2 = LoadSound("assets/audio/hurt2.wav");
+
     player1->vfxSpawnTimer = 0.7f;
     player2->vfxSpawnTimer = 0.7f;
 
     player1->frameWidth = player1->spriteSheet.width / 5;
-    player1->frameHeight = player1->spriteSheet.height / 5;
+    if (p1CharacterID == 1) player1->frameHeight = player1->spriteSheet.width / 5; 
+    else player1->frameHeight = player1->spriteSheet.height / 5;
 
     player1->animTimer = 0.0f;
     player1->animSpeed = 0.15f;
@@ -1000,7 +1045,8 @@ void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     player1->animLength = 2;
 
     player2->frameWidth = player2->spriteSheet.width / 5;
-    player2->frameHeight = player2->spriteSheet.height / 5;
+    if (p2CharacterID == 1) player2->frameHeight = player2->spriteSheet.width / 5; 
+    else player2->frameHeight = player2->spriteSheet.height / 5;
 
     player2->animTimer = 0.0f;
     player2->animSpeed = 0.15f;
@@ -1048,17 +1094,6 @@ int GameScene_Update(void) {
                 UpdateAI(player2, player1, dt);
             }
 
-            if (IsKeyPressed(KEY_F2)) {
-                player1->ultCharge = player1->maxUltCharge;
-                player1->currentUlt = player1->maxUlt;
-                printf("DEBUG: Player 1 Ult Maxed\n");
-            }
-            if (IsKeyPressed(KEY_F3)) {
-                player1->roundsWon++;
-                if (player1->roundsWon > 3) player1->roundsWon = 3;
-                printf("DEBUG: Player 1 Rounds Won: %d\n", player1->roundsWon);
-            }
-            
             Combat_Update(player1, player2);
 
             if (player1->currentHealth <= 0 || player2->currentHealth <= 0) {
@@ -1125,22 +1160,6 @@ void GameScene_Draw(void) {
     DrawPlayerSprite(player2, (Color){200, 200, 255, 255});
     
     DrawVfx();
-    
-    Color p1Color = (player1->state == PLAYER_STATE_ATTACK) ? RED : GREEN;
-    DrawRectangleLinesEx((Rectangle){ 
-        player1->position.x - 20, 
-        player1->position.y - 60,
-        40, 
-        60
-    }, 2.0f, p1Color);
-
-    Color p2Color = (player2->state == PLAYER_STATE_ATTACK) ? ORANGE : BLUE;
-    DrawRectangleLinesEx((Rectangle){ 
-        player2->position.x - 20, 
-        player2->position.y - 60,
-        40, 
-        60
-    }, 2.0f, p2Color);
 
     Combat_Draw(texPoisonCloud);
 
@@ -1150,6 +1169,19 @@ void GameScene_Draw(void) {
     float startY = 20.0f;
 
     DrawTextureEx(texGuiFrame, (Vector2){startX, startY}, 0.0f, uiScale, WHITE);
+
+    float iconScaleHUD = 2.5f;
+    
+    if (player1->currentAnimIndex >= 0) {
+        Texture2D iconToDraw = (player1->characterID == 1) ? texAmoebaIcon : texBactIcon;
+        DrawTextureEx(iconToDraw, (Vector2){startX + 18, startY + 18}, 0.0f, iconScaleHUD, WHITE);
+    }
+
+    if (player2->currentAnimIndex >= 0) {
+        Texture2D iconToDraw = (player2->characterID == 1) ? texAmoebaIcon : texBactIcon;
+        float p2IconX = startX + frameW - (iconToDraw.width * iconScaleHUD) - 18;
+        DrawTextureEx(iconToDraw, (Vector2){p2IconX, startY + 18}, 0.0f, iconScaleHUD, WHITE);
+    }
 
     float offSyringeY = startY + (33 * uiScale);
     float offSyringeXL = startX + (28 * uiScale);
@@ -1356,7 +1388,7 @@ void GameScene_Draw(void) {
         int spacing = 50;
 
         const char* optsEN[] = { "RESUME", "SETTINGS", "QUIT MATCH" };
-        const char* optsPT[] = { "CONTINUAR", "CONFIGURAÇÕES", "SAIR DA PARTIDA" };
+        const char* optsPT[] = { "CONTINUAR", "CONFIGURACOES", "SAIR DA PARTIDA" };
         const char** currentOpts = (currentLanguage == 0) ? optsEN : optsPT;
 
         for (int i = 0; i < 3; i++) {
@@ -1397,7 +1429,12 @@ void GameScene_Unload(void) {
     UnloadTexture(texRocketVfx);
     UnloadTexture(texPoisonCloud);
     UnloadTexture(texExplosion);
+    UnloadTexture(texHitVfx);
+    UnloadTexture(texBactIcon);
+    UnloadTexture(texAmoebaIcon);
     Vfx_Cleanup();
+    UnloadSound(sndHurt1);
+    UnloadSound(sndHurt2);
 
     Combat_Cleanup();
 }
