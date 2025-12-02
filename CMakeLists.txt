@@ -15,7 +15,7 @@ add_executable(MicroMayhem
 
 target_include_directories(MicroMayhem PUBLIC ${PROJECT_SOURCE_DIR}/raylib/include)
 target_link_directories(MicroMayhem PUBLIC ${PROJECT_SOURCE_DIR}/raylib/lib)
-target_link_libraries(MicroMayhem PUBLIC raylib)
+target_link_libraries(MicroMayhem PRIVATE raylib m)
 
 if (WIN32)
     target_link_libraries(MicroMayhem PUBLIC opengl32 gdi32 winmm shell32 user32 kernel32)
