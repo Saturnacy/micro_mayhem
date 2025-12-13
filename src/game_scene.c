@@ -47,6 +47,8 @@ static Texture2D texPoisonCloud;
 static Texture2D texExplosion;
 static Texture2D texBactIcon;
 static Texture2D texAmoebaIcon;
+static Texture2D texDNAProjectile;
+static Texture2D texAmoebaProjectile;
 Texture2D texHitVfx;
 static Sound sndHurt1;
 static Sound sndHurt2;
@@ -67,10 +69,19 @@ static const char* GetCharacterJSON(int charID) {
 }
 
 static const char* GetCharacterName(int charID) {
-    switch(charID) {
-        case 0: return "BACTERIOPHAGE";
-        case 1: return "AMOEBA";
-        default: return "UNKNOWN";
+    if (currentLanguage == 1) {
+        switch(charID) {
+            case 0: return "BACTERIOFAGO";
+            case 1: return "AMEBA";
+            default: return "DESCONHECIDO";
+        }
+    } 
+    else {
+        switch(charID) {
+            case 0: return "BACTERIOPHAGE";
+            case 1: return "AMOEBA";
+            default: return "UNKNOWN";
+        }
     }
 }
 
@@ -169,6 +180,7 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
 
     if (player->state == PLAYER_STATE_ATTACK) {
         player->attackFrameCounter++;
+        
         Move *move = (player->currentMove != NULL) ? player->currentMove : &player->moves->sideGround;
         
         if (move->canCombo && IsKeyPressed(input.attack)) {
@@ -186,8 +198,20 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
         }
 
         if (move->steerSpeed > 0) {
-            if (IsKeyDown(input.left))  player->position.x -= move->steerSpeed;
-            if (IsKeyDown(input.right)) player->position.x += move->steerSpeed;
+            if (IsKeyDown(input.left)) {
+                player->position.x -= move->steerSpeed;
+                
+                if (player->characterID == 1 && move == &player->moves->ultimate) {
+                    player->isFlipped = true;
+                }
+            }
+            if (IsKeyDown(input.right)) {
+                player->position.x += move->steerSpeed;
+                
+                if (player->characterID == 1 && move == &player->moves->ultimate) {
+                    player->isFlipped = false;
+                }
+            }
         }
 
         if (player->characterID == 0) {
@@ -219,7 +243,6 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
         }
 
         if (move->type == MOVE_TYPE_ULTIMATE_FALL) {
-            int totalFrames = move->startupFrames + move->activeFrames;
             int peakFrame = 40;
             int hangTime = 60;
 
@@ -248,8 +271,24 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
                 if (IsKeyDown(input.right)) player->position.x += move->steerSpeed;
             }
         }
+
+        if (player->characterID == 1 && move == &player->moves->ultimate) {
+             player->velocity.y += 0.5f;
+             
+             if (IsKeyPressed(input.jump) && player->isGrounded) {
+                 player->velocity.y = -12.0f;
+                 player->isGrounded = false;
+             }
+        }
+
+        if (player->velocity.y > 30.0f) player->velocity.y = 30.0f;
         
         player->position = Vector2Add(player->position, player->velocity);
+
+        if (player->position.y < -800.0f) {
+            player->position.y = -800.0f;
+            if (player->velocity.y < 0) player->velocity.y = 0;
+        }
 
         if (player->position.y < GROUND_LEVEL) {
             player->isGrounded = false;
@@ -285,6 +324,10 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
                  player->hasUsedAirSpecial = false;
                  return;
              }
+
+             player->position.y = GROUND_LEVEL;
+             player->velocity.y = 0;
+             player->isGrounded = true;
         }
 
         int totalAttackFrames = move->startupFrames + move->activeFrames + move->recoveryFrames;     
@@ -305,6 +348,8 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
 
     if (!player->isGrounded) {
         player->velocity.y += 0.5f;
+
+        if (player->velocity.y > 30.0f) player->velocity.y = 30.0f;
         
         if (player->state != PLAYER_STATE_HURT) {
             player->state = PLAYER_STATE_FALL;
@@ -312,6 +357,11 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
     }
 
     player->position = Vector2Add(player->position, player->velocity);
+
+    if (player->position.y < -800.0f) {
+        player->position.y = -800.0f;
+        if (player->velocity.y < 0) player->velocity.y = 0;
+    }
 
     if (player->position.x - PLAYER_HALF_WIDTH < 0) {
         player->position.x = PLAYER_HALF_WIDTH;
@@ -322,16 +372,16 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
         player->velocity.x = 0;
     }
     
-    if (player->position.y > GROUND_LEVEL) {
-        player->position.y = GROUND_LEVEL;
-        player->velocity.y = 0;
-        player->isGrounded = true;
-        player->hasUsedAirSpecial = false;
-        
-        if (player->state == PLAYER_STATE_FALL || player->state == PLAYER_STATE_HURT) {
-            player->state = PLAYER_STATE_IDLE;
-            player->velocity.x = 0;
-        }
+    if (player->position.y > GROUND_LEVEL) { 
+         player->position.y = GROUND_LEVEL;
+         player->velocity.y = 0;
+         player->isGrounded = true;
+         
+         if (player->state == PLAYER_STATE_FALL || player->state == PLAYER_STATE_HURT) {
+             player->state = PLAYER_STATE_IDLE;
+             player->hasUsedAirSpecial = false;
+             player->velocity.x = 0;
+         }
     }
 
     if (player->state != PLAYER_STATE_HURT) {
@@ -362,6 +412,10 @@ static void UpdateHuman(Player *player, float dt, InputConfig input) {
             
             player->state = PLAYER_STATE_ATTACK;
             player->attackFrameCounter = 0;
+
+            if (player->characterID == 1) {
+                player->velocity = (Vector2){ 0, 0 };
+            }
 
             if (IsKeyDown(input.up)) {
                 if (isSpecial) {
@@ -656,7 +710,18 @@ static void UpdateAI(Player *ai, Player *target, float dt) {
             }
         }
 
+        if (ai->characterID == 1 && move == &ai->moves->ultimate) {
+             ai->velocity.y += 0.5f; 
+        }
+
+        if (ai->velocity.y > 30.0f) ai->velocity.y = 30.0f;
+
         ai->position = Vector2Add(ai->position, ai->velocity);
+
+        if (ai->position.y < -800.0f) {
+            ai->position.y = -800.0f;
+            if (ai->velocity.y < 0) ai->velocity.y = 0;
+        }
 
         if (ai->position.y < GROUND_LEVEL) {
             ai->isGrounded = false;
@@ -688,6 +753,10 @@ static void UpdateAI(Player *ai, Player *target, float dt) {
                  ai->hasUsedAirSpecial = false;
                  return;
              }
+             
+             ai->position.y = GROUND_LEVEL;
+             ai->velocity.y = 0;
+             ai->isGrounded = true;
         }
 
         int totalFrames = move->startupFrames + move->activeFrames + move->recoveryFrames;
@@ -706,11 +775,18 @@ static void UpdateAI(Player *ai, Player *target, float dt) {
 
     if (!ai->isGrounded) {
         ai->velocity.y += 0.5f;
+        if (ai->velocity.y > 30.0f) ai->velocity.y = 30.0f;
+
         if (ai->state != PLAYER_STATE_HURT) {
             ai->state = PLAYER_STATE_FALL;
         }
     }
     ai->position = Vector2Add(ai->position, ai->velocity);
+
+    if (ai->position.y < -800.0f) {
+        ai->position.y = -800.0f;
+        if (ai->velocity.y < 0) ai->velocity.y = 0;
+    }
 
     if (ai->position.x - PLAYER_HALF_WIDTH < 0) { ai->position.x = PLAYER_HALF_WIDTH; ai->velocity.x = 0; }
     if (ai->position.x + PLAYER_HALF_WIDTH > GAME_WIDTH) { ai->position.x = GAME_WIDTH - PLAYER_HALF_WIDTH; ai->velocity.x = 0; }
@@ -793,7 +869,14 @@ void DrawPlayerSprite(Player *p, Color tint) {
 
     if (p->isFlipped) sourceRec.width = -sourceRec.width;
 
-    float scale = 3.0f; 
+    float scale = 3.0f;
+    
+    if (p->characterID == 1 && p->state == PLAYER_STATE_ATTACK) {
+        if (p->currentMove == &p->moves->ultimate) {
+            scale = 9.0f;
+        }
+    }
+
     Rectangle destRec = {
         p->position.x, 
         p->position.y, 
@@ -875,7 +958,16 @@ void UpdatePlayerAnimation(Player *p, float dt) {
             else if (p->currentMove == &p->moves->airDown)    { start = 43; len = 3; }
             else if (p->currentMove == &p->moves->airUp)      { start = 46; len = 4; }
             
-            else if (p->currentMove == &p->moves->ultimate)   { start = 39; len = 4; loop = true; }
+            else if (p->currentMove == &p->moves->ultimate) {
+                if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_RIGHT) || 
+                    IsKeyDown(KEY_A) || IsKeyDown(KEY_D)) {
+                    
+                    start = 4; len = 6; speed = 0.12f; loop = true;
+                } 
+                else {
+                    start = 0; len = 4; speed = 0.2f; loop = true;
+                }
+            }
             else { start = 18; len = 5; }
         }
         else if (p->state == PLAYER_STATE_JUMP) { start = 10; len = 1; loop = false; }
@@ -1019,17 +1111,20 @@ void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     texHitVfx = LoadTexture("assets/hit.png");
     SetTextureFilter(texHitVfx, TEXTURE_FILTER_POINT);
 
-    texExplosion = LoadTexture("assets/green_explosion.png");
-    SetTextureFilter(texExplosion, TEXTURE_FILTER_POINT);
-
     texBactIcon = LoadTexture("assets/bacteriophage_icon.png");
     SetTextureFilter(texBactIcon, TEXTURE_FILTER_POINT);
 
     texAmoebaIcon = LoadTexture("assets/amoeba_icon.png");
     SetTextureFilter(texAmoebaIcon, TEXTURE_FILTER_POINT);
 
-    sndHurt1 = LoadSound("assets/audio/hurt1.wav");
-    sndHurt2 = LoadSound("assets/audio/hurt2.wav");
+    texDNAProjectile = LoadTexture("assets/dna_projectile.png");
+    SetTextureFilter(texDNAProjectile, TEXTURE_FILTER_POINT);
+
+    texAmoebaProjectile = LoadTexture("assets/amoeba_projectile.png");
+    SetTextureFilter(texAmoebaProjectile, TEXTURE_FILTER_POINT);
+
+    sndHurt1 = LoadSound("assets/audio/hurt1.ogg");
+    sndHurt2 = LoadSound("assets/audio/hurt2.ogg");
 
     player1->vfxSpawnTimer = 0.7f;
     player2->vfxSpawnTimer = 0.7f;
@@ -1161,7 +1256,7 @@ void GameScene_Draw(void) {
     
     DrawVfx();
 
-    Combat_Draw(texPoisonCloud);
+    Combat_Draw(texPoisonCloud, texDNAProjectile, texAmoebaProjectile);
 
     float uiScale = 1.7f;
     float frameW = texGuiFrame.width * uiScale;
@@ -1171,16 +1266,37 @@ void GameScene_Draw(void) {
     DrawTextureEx(texGuiFrame, (Vector2){startX, startY}, 0.0f, uiScale, WHITE);
 
     float iconScaleHUD = 2.5f;
+
+    float slotSize = 85.0f;
+
+    float slotMarginX = -4.0f; 
+    float slotMarginY = -7.0f;
     
     if (player1->currentAnimIndex >= 0) {
         Texture2D iconToDraw = (player1->characterID == 1) ? texAmoebaIcon : texBactIcon;
-        DrawTextureEx(iconToDraw, (Vector2){startX + 18, startY + 18}, 0.0f, iconScaleHUD, WHITE);
+        
+        float iconW = iconToDraw.width * iconScaleHUD;
+        float iconH = iconToDraw.height * iconScaleHUD;
+
+        float drawX = (startX + slotMarginX) + (slotSize - iconW) / 2.0f;
+        float drawY = (startY + slotMarginY) + (slotSize - iconH) / 2.0f;
+
+        DrawTextureEx(iconToDraw, (Vector2){drawX, drawY}, 0.0f, iconScaleHUD, WHITE);
     }
 
     if (player2->currentAnimIndex >= 0) {
         Texture2D iconToDraw = (player2->characterID == 1) ? texAmoebaIcon : texBactIcon;
-        float p2IconX = startX + frameW - (iconToDraw.width * iconScaleHUD) - 18;
-        DrawTextureEx(iconToDraw, (Vector2){p2IconX, startY + 18}, 0.0f, iconScaleHUD, WHITE);
+
+        float iconW = iconToDraw.width * iconScaleHUD;
+        float iconH = iconToDraw.height * iconScaleHUD;
+
+        float p2BoxX = (startX + frameW) - slotMarginX - slotSize;
+        float p2BoxY = startY + slotMarginY;
+
+        float drawX = p2BoxX + (slotSize - iconW) / 2.0f;
+        float drawY = p2BoxY + (slotSize - iconH) / 2.0f;
+
+        DrawTextureEx(iconToDraw, (Vector2){drawX, drawY}, 0.0f, iconScaleHUD, WHITE);
     }
 
     float offSyringeY = startY + (33 * uiScale);
@@ -1432,6 +1548,8 @@ void GameScene_Unload(void) {
     UnloadTexture(texHitVfx);
     UnloadTexture(texBactIcon);
     UnloadTexture(texAmoebaIcon);
+    UnloadTexture(texDNAProjectile);
+    UnloadTexture(texAmoebaProjectile);
     Vfx_Cleanup();
     UnloadSound(sndHurt1);
     UnloadSound(sndHurt2);

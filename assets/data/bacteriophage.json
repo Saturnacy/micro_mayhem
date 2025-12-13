@@ -103,7 +103,7 @@
       "damage": 6.0, 
       "startup": 12, "active": 10, "recovery": 10,
       "knockback": { "x": 0.0, "y": 2.0 },
-      "hitbox": { "x": 0, "y": 40, "w": 40, "h": 40 },
+      "hitbox": { "x": 5, "y": 40, "w": 30, "h": 60 },
       "type": "TRAP_PROJECTILE",
       "projectile_speed": { "x": 0.0, "y": 10.0 },
       "effect": "POISON",

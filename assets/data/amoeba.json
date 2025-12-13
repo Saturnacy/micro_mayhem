@@ -80,13 +80,14 @@
     "special_side": {
       "name": "Binary Fission",
       "damage": 10.0,
-      "startup": 12, "active": 60, "recovery": 15,
+      "startup": 12, "active": 30, "recovery": 15,
       "knockback": { "x": 8.0, "y": -4.0 },
-      "hitbox": { "x": 20, "y": 10, "w": 30, "h": 30 },
+      "hitbox": { "x": 20, "y": -45, "w": 25, "h": 45 },
       "type": "PROJECTILE",
       "projectile_speed": { "x": 9.0, "y": 0.0 },
       "effect": "SLOW",
-      "effect_duration": 2.0
+      "effect_duration": 2.0,
+      "self_velocity": { "x": 0.0, "y": 6.0 }
     },
     "special_up": {
       "name": "Elastic Launch",
@@ -99,7 +100,7 @@
     },
     "special_down": {
       "name": "Tectonic Slam",
-      "damage": 18.0, 
+      "damage": 16.0, 
       "startup": 15, "active": 30, "recovery": 25,
       "knockback": { "x": 5.0, "y": -12.0 },
       "hitbox": { "x": -40, "y": 20, "w": 100, "h": 40 },
@@ -111,14 +112,16 @@
       "name": "Macro-Mitosis (Giant Form)",
       "damage": 8.0,
       "startup": 20, 
-      "active": 180, 
+      "active": 540, 
       "recovery": 60,
       "knockback": { "x": 12.0, "y": -8.0 },
       "hitbox": { "x": -150, "y": -200, "w": 300, "h": 300 },
       "type": "ULTIMATE",
       "multi_hit": true,
       "effect": "SLOW",
+      "steer_speed": 4.5,
       "effect_duration": 1.0
+      
     }
   }
 }

@@ -80,9 +80,17 @@ const char *TitleBGPaths[UNIQUE_BG_COUNT] = {
 };
 
 bool isMultiplayer = false;
-const char* charNames[CHAR_COUNT] = { "BACTERIOPHAGE", "AMOEBA", "TARDIGRADE", "STENTOR", 
-                                        "PARAMECIUM", "EUGLENA", "NEMATODE", "ROTIFER",
-                                        "DINOFLAGELLATE", "DAPHNIA", "HYDRA", "ARCHEON" };
+const char* charNamesEN[CHAR_COUNT] = { 
+    "BACTERIOPHAGE", "AMOEBA", "TARDIGRADE", "STENTOR", 
+    "PARAMECIUM", "EUGLENA", "NEMATODE", "ROTIFER",
+    "DINOFLAGELLATE", "DAPHNIA", "HYDRA", "ARCHEON" 
+};
+
+const char* charNamesPT[CHAR_COUNT] = { 
+    "BACTERIOFAGO", "AMEBA", "TARDIGRADO", "STENTOR", 
+    "PARAMECIO", "EUGLENA", "NEMATODEO", "ROTIFERO",
+    "DINOFLAGELADO", "DAPHNIA", "HIDRA", "ARQUEA" 
+};
 int p1Selection = 0;
 int p2Selection = 0;
 bool isSelectingP2 = false;
@@ -142,6 +150,9 @@ int main(void) {
     menuMusic.looping = true;
     SetMusicVolume(menuMusic, settings.musicVolume); 
     bool isMenuMusicPlaying = false;
+
+    Sound sndSelect = LoadSound("assets/audio/select.mp3");
+    Sound sndSelected = LoadSound("assets/audio/confirm.mp3");
 
     Music cssMusic = LoadMusicStream("assets/audio/css_music.ogg");
     cssMusic.looping = true;
@@ -449,14 +460,17 @@ int main(void) {
                 if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
                     selectedOption++;
                     if (selectedOption >= MENU_OPTIONS) selectedOption = 0;
+                    PlaySound(sndSelect);
                 }
 
                 if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
                     selectedOption--;
                     if (selectedOption < 0) selectedOption = MENU_OPTIONS - 1;
+                    PlaySound(sndSelect);
                 }
 
                 if (IsKeyPressed(KEY_ENTER)) {
+                    PlaySound(sndSelected);
                     switch (selectedOption) {
                         case 0:
                             currentState = STATE_QUICKPLAY_MENU;
@@ -486,13 +500,16 @@ int main(void) {
                 if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
                     selectedOption++;
                     if (selectedOption > 2) selectedOption = 0;
+                    PlaySound(sndSelect);
                 }
 
                 if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
                     selectedOption--;
                     if (selectedOption < 0) selectedOption = 2;
+                    PlaySound(sndSelect);
                 }
                 if (IsKeyPressed(KEY_ENTER)) {
+                    PlaySound(sndSelected);
                     switch (selectedOption) {
                         case 0:
                             StopMusicStream(menuMusic);
@@ -540,6 +557,13 @@ int main(void) {
 
                     if (isSelectingP2) {
                         if (inputDelayTimer <= 0) {
+                            if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A) || 
+                                IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D) ||
+                                IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S) ||
+                                IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+                                    PlaySound(sndSelect);
+                            }
+
                             if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) p2Selection--;
                             if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) p2Selection++;
                             if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) p2Selection += 4;
@@ -551,7 +575,8 @@ int main(void) {
                             if (IsKeyPressed(KEY_ENTER)) {
                                 if (p2Selection > 1) {
                                     returnState = STATE_CHARACTER_SELECT; 
-                                    currentState = STATE_DEMO_LOCK; 
+                                    currentState = STATE_DEMO_LOCK;
+                                    PlaySound(sndSelected); 
                                 } else {
                                     StopMusicStream(cssMusic);
                                     
@@ -572,6 +597,13 @@ int main(void) {
                 
                     else {
                         if (inputDelayTimer <= 0) {
+                            if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A) || 
+                                IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D) ||
+                                IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S) ||
+                                IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+                                    PlaySound(sndSelect);
+                            }
+
                             if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) p1Selection--;
                             if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) p1Selection++;
                             if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) p1Selection += 4;
@@ -584,6 +616,7 @@ int main(void) {
                                 if (p1Selection > 1) {
                                     returnState = STATE_CHARACTER_SELECT;
                                     currentState = STATE_DEMO_LOCK;
+                                    PlaySound(sndSelected);
                                 } 
                                 else {
                                     if (isMultiplayer) {
@@ -595,7 +628,10 @@ int main(void) {
                                         PlayMusicStream(fightMusic);
                                         
                                         GameScene_SetLanguage(settings.language);
-                                        GameScene_Init(p1Selection, 0); 
+
+                                        int cpuID = GetRandomValue(0, 1);
+
+                                        GameScene_Init(p1Selection, cpuID); 
                                         currentState = STATE_GAMEPLAY;
                                     }
                                 }
@@ -617,15 +653,19 @@ int main(void) {
                 if (IsKeyPressed(KEY_DOWN)) {
                     selectedOption++;
                     if (selectedOption >= SETTINGS_OPTIONS) selectedOption = 0;
+                    PlaySound(sndSelect);
                 }
                 if (IsKeyPressed(KEY_UP)) {
                     selectedOption--;
                     if (selectedOption < 0) selectedOption = SETTINGS_OPTIONS - 1;
+                    PlaySound(sndSelect);
                 }
 
                 if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_RIGHT)) {
 
                     int dir = IsKeyPressed(KEY_RIGHT) ? 1 : -1;
+
+                    PlaySound(sndSelect);
 
                     switch(selectedOption) {
                         case 0: settings.masterVolume += 0.1f * dir; break;
@@ -660,6 +700,7 @@ int main(void) {
                 if (isMenuMusicPlaying) SetMusicVolume(menuMusic, settings.musicVolume);
 
                 if (IsKeyPressed(KEY_ENTER)) {
+                    PlaySound(sndSelected);
                     if (selectedOption == 4) {
                         ToggleFullscreen();
                         settings.fullscreen = IsWindowFullscreen();
@@ -1004,9 +1045,15 @@ int main(void) {
 
                         Texture2D texToDraw = isLocked ? lockedBoxTex : charBoxTex;
 
+                        if (!isLocked) {
+                            DrawRectangle(drawX + 10, drawY + 10, boxSize - 20, boxSize - 20, (Color){0, 0, 0, 100});
+                        }
+
                         DrawTexturePro(texToDraw, 
                             (Rectangle){0, 0, texToDraw.width, texToDraw.height}, 
                             boxRect, (Vector2){0,0}, 0.0f, WHITE);
+
+                        BeginScissorMode((int)drawX + 13, (int)drawY + 13, (int)boxSize - 4, (int)boxSize - 22);
 
                         if (i == 0) {
                             float iconScale = 3.5f;
@@ -1022,9 +1069,7 @@ int main(void) {
                             DrawTextureEx(amoebaIcon, (Vector2){iconX, iconY}, 0.0f, iconScale, WHITE);
                         }
 
-                        if (!isLocked) {
-                            DrawRectangle(drawX + 10, drawY + 10, boxSize - 20, boxSize - 20, (Color){0, 0, 0, 100});
-                        }
+                        EndScissorMode();
 
                         if (i == p1Selection) {
                             DrawRectangleLinesEx(boxRect, 4.0f, RED);
@@ -1064,6 +1109,7 @@ int main(void) {
                     const char* statMed = (settings.language == LANG_EN) ? "MED" : "MEDIO";
                     const char* statHigh = (settings.language == LANG_EN) ? "HIGH" : "ALTO";
                     const char* localizedLabels[] = { statLow, statMed, statHigh };
+                    const char** namesToUse = (settings.language == LANG_EN) ? charNamesEN : charNamesPT;
 
                     if (p1Selection > 1) {
                          DrawTextEx(gameFont, "???", (Vector2){textLeftMargin, textTopMargin}, nameFontSize, fontSpacing, GRAY);
@@ -1077,7 +1123,7 @@ int main(void) {
                          DrawTextEx(gameFont, "???", (Vector2){textLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, GRAY);
                     } 
                     else {
-                        const char* p1Txt = charNames[p1Selection];
+                        const char* p1Txt = namesToUse[p1Selection];
                         DrawTextEx(gameFont, p1Txt, (Vector2){textLeftMargin, textTopMargin}, nameFontSize, fontSpacing, WHITE);
 
                         int hpVal = statsHP[p1Selection];
@@ -1112,7 +1158,7 @@ int main(void) {
                             DrawTextEx(gameFont, "???", (Vector2){p2TextLeftMargin + valueOffsetX, statsStartY + (lineHeight * 2)}, nameFontSize, fontSpacing, GRAY);
                         }
                         else {
-                            const char* p2Txt = charNames[p2Selection];
+                            const char* p2Txt = namesToUse[p2Selection];
                             DrawTextEx(gameFont, p2Txt, (Vector2){p2TextLeftMargin, textTopMargin}, nameFontSize, fontSpacing, WHITE);
 
                             int hpValP2 = statsHP[p2Selection];
@@ -1227,6 +1273,8 @@ int main(void) {
     UnloadMusicStream(cssMusic);
     StopMusicStream(fightMusic);
     UnloadMusicStream(fightMusic);
+    UnloadSound(sndSelect);
+    UnloadSound(sndSelected);
 
     CloseAudioDevice();
     CloseWindow();
