@@ -65,10 +65,13 @@
     "air_neutral": {
       "name": "Spore Burst",
       "damage": 5.0,
-      "startup": 4, "active": 6, "recovery": 15,
-      "knockback": { "x": 3.0, "y": 0.0 },
-      "hitbox": { "x": -25, "y": -25, "w": 90, "h": 90 },
-      "type": "PROJECTILE_INSTANT"
+      "startup": 8, "active": 12, "recovery": 10,
+      "knockback": { "x": 0.0, "y": 0.0 },
+      "hitbox": { "x": -100, "y": -225, "w": 200, "h": 200 },
+      "type": "TRAP",
+      "trap_duration": 0.75, 
+      "effect": "POISON",
+      "effect_duration": 1.0
     },
     "special_neutral": {
       "name": "DNA Injector",

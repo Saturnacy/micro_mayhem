@@ -51,7 +51,8 @@
       "damage": 8.0,
       "startup": 8, "active": 6, "recovery": 12,
       "knockback": { "x": 0.0, "y": -8.0 },
-      "hitbox": { "x": -15, "y": -40, "w": 50, "h": 30 }
+      "hitbox": { "x": -15, "y": -40, "w": 50, "h": 30 },
+      "cooldown": 1.0
     },
     "air_down": {
       "name": "Pseudopod Spike",
@@ -79,7 +80,7 @@
     },
     "special_side": {
       "name": "Binary Fission",
-      "damage": 10.0,
+      "damage": 6.0,
       "startup": 12, "active": 30, "recovery": 15,
       "knockback": { "x": 8.0, "y": -4.0 },
       "hitbox": { "x": 20, "y": -45, "w": 25, "h": 45 },
@@ -87,7 +88,8 @@
       "projectile_speed": { "x": 9.0, "y": 0.0 },
       "effect": "SLOW",
       "effect_duration": 2.0,
-      "self_velocity": { "x": 0.0, "y": 6.0 }
+      "self_velocity": { "x": 0.0, "y": 6.0 },
+      "cooldown": 1.0
     },
     "special_up": {
       "name": "Elastic Launch",
@@ -106,11 +108,12 @@
       "hitbox": { "x": -40, "y": 20, "w": 100, "h": 40 },
       "type": "MELEE",
       "self_velocity": { "x": 0.0, "y": 25.0 },
-      "fall_speed": 25.0
+      "fall_speed": 25.0,
+      "cooldown": 4.0
     },
     "ultimate": {
       "name": "Macro-Mitosis (Giant Form)",
-      "damage": 8.0,
+      "damage": 12.0,
       "startup": 20, 
       "active": 540, 
       "recovery": 60,

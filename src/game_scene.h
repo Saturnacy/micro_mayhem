@@ -201,7 +201,7 @@ void GameScene_SetLanguage(int lang);
 // Sistema de Combate
 void Combat_Init(void);
 void Combat_Update(Player *p1, Player *p2);
-void Combat_Draw(Texture2D poisonTex, Texture2D dnaTex, Texture2D amoebaTex);
+void Combat_Draw(Player *p1, Player *p2, Texture2D poisonTex, Texture2D dnaTex, Texture2D amoebaTex, Texture2D sporeTex);
 void Combat_Cleanup(void);
 void Combat_TryExecuteMove(Player *player, Move *move, bool isPlayer1);
 void Combat_ApplyStatus(Player *player, float dt);

@@ -49,6 +49,7 @@ static Texture2D texBactIcon;
 static Texture2D texAmoebaIcon;
 static Texture2D texDNAProjectile;
 static Texture2D texAmoebaProjectile;
+static Texture2D texSpore;
 Texture2D texHitVfx;
 static Sound sndHurt1;
 static Sound sndHurt2;
@@ -1123,6 +1124,9 @@ void GameScene_Init(int p1CharacterID, int p2CharacterID) {
     texAmoebaProjectile = LoadTexture("assets/amoeba_projectile.png");
     SetTextureFilter(texAmoebaProjectile, TEXTURE_FILTER_POINT);
 
+    texSpore = LoadTexture("assets/spore.png");
+    SetTextureFilter(texAmoebaProjectile, TEXTURE_FILTER_POINT);
+
     sndHurt1 = LoadSound("assets/audio/hurt1.ogg");
     sndHurt2 = LoadSound("assets/audio/hurt2.ogg");
 
@@ -1256,7 +1260,7 @@ void GameScene_Draw(void) {
     
     DrawVfx();
 
-    Combat_Draw(texPoisonCloud, texDNAProjectile, texAmoebaProjectile);
+    Combat_Draw(player1, player2, texPoisonCloud, texDNAProjectile, texAmoebaProjectile, texSpore);
 
     float uiScale = 1.7f;
     float frameW = texGuiFrame.width * uiScale;
@@ -1550,6 +1554,7 @@ void GameScene_Unload(void) {
     UnloadTexture(texAmoebaIcon);
     UnloadTexture(texDNAProjectile);
     UnloadTexture(texAmoebaProjectile);
+    UnloadTexture(texSpore);
     Vfx_Cleanup();
     UnloadSound(sndHurt1);
     UnloadSound(sndHurt2);

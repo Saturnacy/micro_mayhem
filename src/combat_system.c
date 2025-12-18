@@ -213,6 +213,14 @@ void Combat_Update(Player *p1, Player *p2) {
                 PlayHurtSound();
             }
 
+            bool hasSuperArmor = (victim->characterID == 1 && 
+                                  victim->currentMove != NULL && 
+                                  victim->currentMove->type == MOVE_TYPE_ULTIMATE);
+
+            if (!hasSuperArmor) {
+                victim->state = PLAYER_STATE_HURT;
+            }
+
             if (proj->moveType != MOVE_TYPE_ULTIMATE && proj->moveType != MOVE_TYPE_ULTIMATE_FALL) {
                 float gainAttacker = proj->damage * 0.8f;
                 float gainVictim = proj->damage * 0.5f;
@@ -355,69 +363,72 @@ void Combat_ApplyStatus(Player *player, float dt) {
     }
 }
 
-void Combat_Draw(Texture2D poisonTex, Texture2D dnaTex, Texture2D amoebaTex) {
+void Combat_Draw(Player *p1, Player *p2, Texture2D poisonTex, Texture2D dnaTex, Texture2D amoebaTex, Texture2D sporeTex) {
     int totalFrames = 6;
-    int currentFrame = (int)(GetTime() * 10.0f) % totalFrames;
-    
     float frameW = (float)poisonTex.width / totalFrames;
     float frameH = (float)poisonTex.height;
-
-    Rectangle sourceRec = {
-        currentFrame * frameW,
-        0.0f,
-        frameW,
-        frameH
-    };
+    int currentFrame = (int)(GetTime() * 10.0f) % totalFrames;
+    Rectangle sourceRecPoison = { currentFrame * frameW, 0.0f, frameW, frameH };
 
     for (TrapNode *t = activeTraps; t != NULL; t = t->next) {
-        if (t->effect == EFFECT_POISON || t->moveType == MOVE_TYPE_TRAP) {
+        Player *owner = t->isPlayer1 ? p1 : p2;
+        bool isSporeBurst = (owner->characterID == 0 && 
+                             t->moveType == MOVE_TYPE_TRAP && 
+                             fabs(t->damage - 5.0f) < 0.1f);
 
+        if (isSporeBurst) {
+            float maxDuration = 36.0f;
+            float progress = 1.0f - (t->duration / maxDuration); 
+            float alpha = t->duration / maxDuration; 
+            if (alpha < 0.0f) alpha = 0.0f;
+            if (alpha > 1.0f) alpha = 1.0f;
+
+            float radius = 30.0f + (progress * 80.0f);
+            
+            int numSpores = 8;
+            Vector2 center = { t->area.x + t->area.width/2.0f, t->area.y + t->area.height/2.0f };
+            
+            for (int i = 0; i < numSpores; i++) {
+                float angle = (i * (360.0f/numSpores) * DEG2RAD) + (progress * 2.0f);
+                
+                Vector2 pos = {
+                    center.x + cosf(angle) * radius,
+                    center.y + sinf(angle) * radius
+                };
+
+                Rectangle source = {0, 0, (float)sporeTex.width, (float)sporeTex.height};
+                Rectangle dest = { pos.x, pos.y, sporeTex.width * 3.0f, sporeTex.height * 3.0f };
+                Vector2 origin = { dest.width/2.0f, dest.height/2.0f };
+                
+                DrawTexturePro(sporeTex, source, dest, origin, angle * RAD2DEG, Fade(WHITE, alpha));
+            }
+            continue; 
+        }
+
+        if (t->effect == EFFECT_POISON || t->moveType == MOVE_TYPE_TRAP) {
             Color cloudColor;
             if (t->moveType == MOVE_TYPE_TRAP) cloudColor = Fade(WHITE, 0.8f);
             else cloudColor = Fade(WHITE, 0.6f);
 
-            int totalFrames = 6;
-            float frameWidth = (float)poisonTex.width / totalFrames;
-            float frameHeight = (float)poisonTex.height;
-
-            int currentFrame = (int)(GetTime() * 10.0f) % totalFrames;
-
-            Rectangle sourceRec = { 
-                currentFrame * frameWidth, 
-                0.0f, 
-                frameWidth, 
-                frameHeight 
-            };
-
             float scale = 3.0f;
-
-            if (t->area.width > 100.0f) {
-                scale = (t->area.width / frameWidth) * 1.2f;
-            }
+            if (t->area.width > 100.0f) scale = (t->area.width / frameW) * 1.2f;
             
-            float drawWidth = frameWidth * scale;   
-            float drawHeight = frameHeight * scale;
-
+            float drawWidth = frameW * scale;   
+            float drawHeight = frameH * scale;
             float centerX = t->area.x + (t->area.width / 2.0f);
             float centerY = t->area.y + (t->area.height / 2.0f);
 
-            Rectangle destRec = {
-                centerX,
-                centerY,
-                drawWidth,
-                drawHeight
-            };
-
+            Rectangle destRec = { centerX, centerY, drawWidth, drawHeight };
             Vector2 origin = { drawWidth / 2.0f, drawHeight / 2.0f };
 
-            DrawTexturePro(poisonTex, sourceRec, destRec, origin, 0.0f, cloudColor);
+            DrawTexturePro(poisonTex, sourceRecPoison, destRec, origin, 0.0f, cloudColor);
         }
         else {
             DrawRectangleRec(t->area, Fade(GREEN, 0.5f));
         }
     }
+
     for (ProjectileNode *p = activeProjectiles; p != NULL; p = p->next) {
-        
         Texture2D spriteToUse = {0};
         bool shouldUseSprite = false;
 
@@ -425,7 +436,6 @@ void Combat_Draw(Texture2D poisonTex, Texture2D dnaTex, Texture2D amoebaTex) {
             spriteToUse = dnaTex;
             shouldUseSprite = true;
         }
-
         else if (p->effect == EFFECT_SLOW) {
             spriteToUse = amoebaTex;
             shouldUseSprite = true;
@@ -433,29 +443,15 @@ void Combat_Draw(Texture2D poisonTex, Texture2D dnaTex, Texture2D amoebaTex) {
 
         if (shouldUseSprite) {
             Rectangle sourceRec = { 0.0f, 0.0f, (float)spriteToUse.width, (float)spriteToUse.height };
-
             float scale = 3.5f; 
-            
             float drawWidth = (float)spriteToUse.width * scale;
             float drawHeight = (float)spriteToUse.height * scale;
-
-            Rectangle destRec = {
-                p->position.x + (p->size.width / 2.0f),
-                p->position.y + (p->size.height / 2.0f),
-                drawWidth,
-                drawHeight
-            };
-        
+            Rectangle destRec = { p->position.x + (p->size.width / 2.0f), p->position.y + (p->size.height / 2.0f), drawWidth, drawHeight };
             Vector2 origin = { drawWidth / 2.0f, drawHeight / 2.0f };
-            
-            float rotation = 0.0f;
-            if (fabs(p->velocity.x) > 0.1f) {
-                 rotation = 90.0f; 
-            }
+            float rotation = (fabs(p->velocity.x) > 0.1f) ? 90.0f : 0.0f;
 
             DrawTexturePro(spriteToUse, sourceRec, destRec, origin, rotation, WHITE);
-        } 
-        else {
+        } else {
             DrawRectangle(p->position.x, p->position.y, p->size.width, p->size.height, YELLOW);
         }
     }
