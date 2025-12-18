@@ -213,6 +213,14 @@ void Combat_Update(Player *p1, Player *p2) {
                 PlayHurtSound();
             }
 
+            bool hasSuperArmor = (victim->characterID == 1 && 
+                                  victim->currentMove != NULL && 
+                                  victim->currentMove->type == MOVE_TYPE_ULTIMATE);
+
+            if (!hasSuperArmor) {
+                victim->state = PLAYER_STATE_HURT;
+            }
+
             if (proj->moveType != MOVE_TYPE_ULTIMATE && proj->moveType != MOVE_TYPE_ULTIMATE_FALL) {
                 float gainAttacker = proj->damage * 0.8f;
                 float gainVictim = proj->damage * 0.5f;
@@ -246,6 +254,31 @@ void Combat_Update(Player *p1, Player *p2) {
         Rectangle victimBody = hb->isPlayer1 ? body2 : body1;
         
         if (CheckCollisionRecs(hb->size, victimBody)) {
+            if (hb->moveType == MOVE_TYPE_ULTIMATE && attacker->characterID == 1) {
+                
+                if (hb->lifetime % 20 == 0) {
+                    victim->currentHealth -= hb->damage;
+                    
+                    Vector2 spawnPos = {
+                        victimBody.x + victimBody.width / 2.0f,
+                        victimBody.y + victimBody.height / 2.0f
+                    };
+                    SpawnVfx(spawnPos, 0.0f, texHitVfx, 8, 0.04f, 1.0f);
+                    PlayHurtSound();
+                    
+                    float kbDir = (attacker->position.x < victim->position.x) ? 2.0f : -2.0f;
+                    victim->velocity.x = hb->knockback.x * kbDir;
+                    victim->velocity.y = hb->knockback.y;
+                    
+                    victim->state = PLAYER_STATE_HURT;
+                    victim->attackFrameCounter = 15;
+                }
+
+                prevHb = hb;
+                hb = hb->next;
+                continue; 
+            }
+
             victim->currentHealth -= hb->damage;
             if (hb->effect == EFFECT_POISON) victim->poisonTimer = hb->effectDuration;
 
@@ -276,11 +309,15 @@ void Combat_Update(Player *p1, Player *p2) {
             if (!hb->isPlayer1) kbDir *= -1;
 
             victim->velocity.x = hb->knockback.x * kbDir;
-
+            
             if (!attacker->isGrounded && attacker->position.y < victim->position.y - 30.0f) {
                 victim->velocity.y = fabs(hb->knockback.y); 
-            } else {
-                victim->velocity.y = hb->knockback.y;
+            }
+
+            else {
+                if (fabs(hb->knockback.y) > 0.1f) {
+                    victim->velocity.y = hb->knockback.y;
+                }
             }
             
             victim->state = PLAYER_STATE_HURT;
@@ -326,57 +363,97 @@ void Combat_ApplyStatus(Player *player, float dt) {
     }
 }
 
-void Combat_Draw(Texture2D poisonTex) {
-
+void Combat_Draw(Player *p1, Player *p2, Texture2D poisonTex, Texture2D dnaTex, Texture2D amoebaTex, Texture2D sporeTex) {
     int totalFrames = 6;
-    int currentFrame = (int)(GetTime() * 10.0f) % totalFrames;
-    
     float frameW = (float)poisonTex.width / totalFrames;
     float frameH = (float)poisonTex.height;
-
-    Rectangle sourceRec = {
-        currentFrame * frameW,
-        0.0f,
-        frameW,
-        frameH
-    };
+    int currentFrame = (int)(GetTime() * 10.0f) % totalFrames;
+    Rectangle sourceRecPoison = { currentFrame * frameW, 0.0f, frameW, frameH };
 
     for (TrapNode *t = activeTraps; t != NULL; t = t->next) {
-        if (t->effect == EFFECT_POISON) {
+        Player *owner = t->isPlayer1 ? p1 : p2;
+        bool isSporeBurst = (owner->characterID == 0 && 
+                             t->moveType == MOVE_TYPE_TRAP && 
+                             fabs(t->damage - 5.0f) < 0.1f);
+
+        if (isSporeBurst) {
+            float maxDuration = 36.0f;
+            float progress = 1.0f - (t->duration / maxDuration); 
+            float alpha = t->duration / maxDuration; 
+            if (alpha < 0.0f) alpha = 0.0f;
+            if (alpha > 1.0f) alpha = 1.0f;
+
+            float radius = 30.0f + (progress * 80.0f);
             
-            Color cloudColor;
+            int numSpores = 8;
+            Vector2 center = { t->area.x + t->area.width/2.0f, t->area.y + t->area.height/2.0f };
             
-            Color purpleBase = (Color){ 180, 60, 255, 255 }; 
-            
-            if (t->moveType == MOVE_TYPE_TRAP) { 
-                cloudColor = Fade(purpleBase, 0.8f);
-            } 
-            else {
-                cloudColor = Fade(purpleBase, 0.6f);
+            for (int i = 0; i < numSpores; i++) {
+                float angle = (i * (360.0f/numSpores) * DEG2RAD) + (progress * 2.0f);
+                
+                Vector2 pos = {
+                    center.x + cosf(angle) * radius,
+                    center.y + sinf(angle) * radius
+                };
+
+                Rectangle source = {0, 0, (float)sporeTex.width, (float)sporeTex.height};
+                Rectangle dest = { pos.x, pos.y, sporeTex.width * 3.0f, sporeTex.height * 3.0f };
+                Vector2 origin = { dest.width/2.0f, dest.height/2.0f };
+                
+                DrawTexturePro(sporeTex, source, dest, origin, angle * RAD2DEG, Fade(WHITE, alpha));
             }
-            float drawWidth = t->area.width * 1.2f;
-            float drawHeight = t->area.height * 1.2f;
+            continue; 
+        }
 
-            Rectangle destRec = {
-                t->area.x + (t->area.width / 2.0f),
-                t->area.y + (t->area.height / 2.0f),
-                drawWidth,
-                drawHeight
-            };
+        if (t->effect == EFFECT_POISON || t->moveType == MOVE_TYPE_TRAP) {
+            Color cloudColor;
+            if (t->moveType == MOVE_TYPE_TRAP) cloudColor = Fade(WHITE, 0.8f);
+            else cloudColor = Fade(WHITE, 0.6f);
+
+            float scale = 3.0f;
+            if (t->area.width > 100.0f) scale = (t->area.width / frameW) * 1.2f;
             
-            Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
+            float drawWidth = frameW * scale;   
+            float drawHeight = frameH * scale;
+            float centerX = t->area.x + (t->area.width / 2.0f);
+            float centerY = t->area.y + (t->area.height / 2.0f);
 
-            DrawTexturePro(poisonTex, sourceRec, destRec, origin, 0.0f, cloudColor);
-        } 
+            Rectangle destRec = { centerX, centerY, drawWidth, drawHeight };
+            Vector2 origin = { drawWidth / 2.0f, drawHeight / 2.0f };
+
+            DrawTexturePro(poisonTex, sourceRecPoison, destRec, origin, 0.0f, cloudColor);
+        }
         else {
-            Color trapColor = (Color){ 100, 0, 200, 100 };
-            DrawRectangleRec(t->area, trapColor);
-            DrawRectangleLinesEx(t->area, 2, GREEN);
+            DrawRectangleRec(t->area, Fade(GREEN, 0.5f));
         }
     }
 
     for (ProjectileNode *p = activeProjectiles; p != NULL; p = p->next) {
-        DrawRectangle(p->position.x, p->position.y, p->size.width, p->size.height, YELLOW);
+        Texture2D spriteToUse = {0};
+        bool shouldUseSprite = false;
+
+        if (p->effect == EFFECT_POISON || p->moveType == MOVE_TYPE_TRAP_PROJECTILE) {
+            spriteToUse = dnaTex;
+            shouldUseSprite = true;
+        }
+        else if (p->effect == EFFECT_SLOW) {
+            spriteToUse = amoebaTex;
+            shouldUseSprite = true;
+        }
+
+        if (shouldUseSprite) {
+            Rectangle sourceRec = { 0.0f, 0.0f, (float)spriteToUse.width, (float)spriteToUse.height };
+            float scale = 3.5f; 
+            float drawWidth = (float)spriteToUse.width * scale;
+            float drawHeight = (float)spriteToUse.height * scale;
+            Rectangle destRec = { p->position.x + (p->size.width / 2.0f), p->position.y + (p->size.height / 2.0f), drawWidth, drawHeight };
+            Vector2 origin = { drawWidth / 2.0f, drawHeight / 2.0f };
+            float rotation = (fabs(p->velocity.x) > 0.1f) ? 90.0f : 0.0f;
+
+            DrawTexturePro(spriteToUse, sourceRec, destRec, origin, rotation, WHITE);
+        } else {
+            DrawRectangle(p->position.x, p->position.y, p->size.width, p->size.height, YELLOW);
+        }
     }
 }
 
